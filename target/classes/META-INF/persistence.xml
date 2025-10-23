@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<persistence version="3.0"
+             xmlns="https://jakarta.ee/xml/ns/persistence"
+             xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+             xsi:schemaLocation="https://jakarta.ee/xml/ns/persistence https://jakarta.ee/xml/ns/persistence/persistence_3_0.xsd">
+
+    <!-- Unidad de persistencia para WsRestUNA -->
+    <persistence-unit name="WsRestUNA" transaction-type="JTA">
+        
+        <!-- Proveedor JPA: EclipseLink (viene con Payara) -->
+        <provider>org.eclipse.persistence.jpa.PersistenceProvider</provider>
+        
+        <!-- Recurso JDBC configurado en Payara -->
+        <jta-data-source>jdbc/RestUNA</jta-data-source>
+        
+        <!-- Clases de Entidades -->
+        <class>cr.ac.una.wsrestuna.model.Usuario</class>
+        <class>cr.ac.una.wsrestuna.model.Salon</class>
+        <class>cr.ac.una.wsrestuna.model.Mesa</class>
+        <class>cr.ac.una.wsrestuna.model.GrupoProducto</class>
+        <class>cr.ac.una.wsrestuna.model.Producto</class>
+        <class>cr.ac.una.wsrestuna.model.Orden</class>
+        <class>cr.ac.una.wsrestuna.model.DetalleOrden</class>
+        <class>cr.ac.una.wsrestuna.model.Cliente</class>
+        <class>cr.ac.una.wsrestuna.model.Factura</class>
+        <class>cr.ac.una.wsrestuna.model.DetalleFactura</class>
+        <class>cr.ac.una.wsrestuna.model.CierreCaja</class>
+        <class>cr.ac.una.wsrestuna.model.Parametros</class>
+        
+        <!-- Excluir clases no listadas -->
+        <exclude-unlisted-classes>true</exclude-unlisted-classes>
+        
+         <!-- Propiedades de JPA/EclipseLink -->
+        <properties>
+            <!-- Configuración de EclipseLink -->
+            <property name="eclipselink.target-server" value="Payara"/>
+            
+            <property name="jakarta.persistence.jdbc.show_sql" value="true"/>
+            
+            <!-- No generar ni modificar nada en la BD automáticamente -->
+            <property name="jakarta.persistence.schema-generation.database.action" value="none"/>
+            
+            <!-- Logging: nivel de detalle (OFF, SEVERE, WARNING, INFO, CONFIG, FINE, FINER, FINEST, ALL) -->
+            <property name="eclipselink.logging.level" value="FINE"/>
+            <property name="eclipselink.logging.level.sql" value="FINE"/>
+            <property name="eclipselink.logging.parameters" value="true"/>
+            <property name="eclipselink.logging.timestamp" value="true"/>
+            <property name="eclipselink.logging.thread" value="false"/>
+            <property name="eclipselink.logging.session" value="false"/>
+            <property name="eclipselink.logging.exceptions" value="true"/>
+            
+            <!-- NO crear/modificar tablas automáticamente (ya existen en la BD) -->
+            <property name="eclipselink.ddl-generation" value="none"/>
+            
+            <!-- Validar el esquema contra la base de datos -->
+            <property name="eclipselink.deploy-on-startup" value="true"/>
+            
+            <!-- Cache de segundo nivel -->
+            <property name="eclipselink.cache.shared.default" value="false"/>
+            
+            <!-- Optimizaciones de rendimiento -->
+            <property name="eclipselink.jdbc.batch-writing" value="JDBC"/>
+            <property name="eclipselink.jdbc.batch-writing.size" value="1000"/>
+            
+            <!-- Flush antes de consultas -->
+            <property name="eclipselink.persistence-context.flush-mode" value="AUTO"/>
+            
+            <!-- Validación de Bean Validation -->
+            <property name="jakarta.persistence.validation.mode" value="AUTO"/>
+            
+            <!-- Configuración de timezone para fechas -->
+            <property name="eclipselink.jdbc.native-sql" value="false"/>
+            
+            <!-- Weaving (mejora el rendimiento de lazy loading) -->
+            <property name="eclipselink.weaving" value="true"/>
+            <property name="eclipselink.weaving.lazy" value="true"/>
+            <property name="eclipselink.weaving.changetracking" value="true"/>
+            <property name="eclipselink.weaving.fetchgroups" value="true"/>
+            <property name="eclipselink.weaving.internal" value="true"/>
+            
+        </properties>
+        
+        
+        
+    </persistence-unit>
+</persistence>
