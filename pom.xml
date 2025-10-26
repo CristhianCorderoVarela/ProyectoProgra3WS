@@ -5,7 +5,7 @@
     <artifactId>WsRestUNA</artifactId>
     <version>1.0</version>
     <packaging>war</packaging>
-    <name>WsRestUNA</name>
+    <name>WsRestUNA-1.0</name>
     
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>

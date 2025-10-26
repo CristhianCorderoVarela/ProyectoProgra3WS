@@ -23,6 +23,11 @@ public class SalonService {
 
     public Salon create(Salon salon) {
         try {
+            if (salon.getImagenMesaBytes() != null && salon.getImagenMesaBytes().length > 0) {
+                LOG.log(Level.INFO, "✅ Imagen recibida: {0} bytes",
+                        salon.getImagenMesaBytes().length);
+            }
+
             em.persist(salon);
             em.flush();
             LOG.log(Level.INFO, "Salón creado: {0}", salon.getNombre());
@@ -35,6 +40,11 @@ public class SalonService {
 
     public Salon update(Salon salon) {
         try {
+            if (salon.getImagenMesaBytes() != null && salon.getImagenMesaBytes().length > 0) {
+                LOG.log(Level.INFO, "✅ Imagen presente en UPDATE: {0} bytes",
+                        salon.getImagenMesaBytes().length);
+            }
+
             Salon merged = em.merge(salon);
             em.flush();
             LOG.log(Level.INFO, "Salón actualizado: {0}", salon.getNombre());
@@ -104,7 +114,7 @@ public class SalonService {
         try {
             Salon salon = em.find(Salon.class, salonId);
             if (salon != null) {
-                salon.setImagenMesa(imagen);
+                salon.setImagenMesaBytes(imagen);
                 salon.setTipoImagen(tipoImagen);
                 em.merge(salon);
                 em.flush();

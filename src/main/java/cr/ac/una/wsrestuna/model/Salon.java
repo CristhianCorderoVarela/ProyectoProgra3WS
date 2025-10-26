@@ -3,16 +3,14 @@ package cr.ac.una.wsrestuna.model;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
+import jakarta.json.bind.annotation.JsonbTransient;
 import java.io.Serializable;
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.List;
 
 /**
  * Entidad que representa salones o secciones del restaurante
- * Tipo SALON: requiere diseño de mesas
- * Tipo BARRA: venta directa sin mesas
- * 
- * @author Tu Nombre
  */
 @Entity
 @Table(name = "salon")
@@ -40,31 +38,34 @@ public class Salon implements Serializable {
     @NotNull
     @Size(min = 1, max = 20)
     @Column(name = "tipo", nullable = false, length = 20)
-    private String tipo; // SALON, BARRA
+    private String tipo;
 
     @Lob
+    @Basic(fetch = FetchType.LAZY)
     @Column(name = "imagen_mesa")
-    private byte[] imagenMesa;
+    @JsonbTransient  // ⭐ NO serializar directamente
+    private byte[] imagenMesaBytes;
 
     @Size(max = 50)
     @Column(name = "tipo_imagen", length = 50)
-    private String tipoImagen; // image/png, image/jpeg, etc.
+    private String tipoImagen;
 
     @NotNull
     @Size(min = 1, max = 1)
     @Column(name = "cobra_servicio", nullable = false, length = 1)
-    private String cobraServicio = "S"; // S=Sí, N=No
+    private String cobraServicio = "S";
 
     @NotNull
     @Size(min = 1, max = 1)
     @Column(name = "estado", nullable = false, length = 1)
-    private String estado = "A"; // A=Activo, I=Inactivo
+    private String estado = "A";
 
     @Version
     @Column(name = "version")
     private Long version;
 
     @OneToMany(mappedBy = "salon", cascade = CascadeType.ALL, orphanRemoval = true)
+    @JsonbTransient
     private List<Mesa> mesas;
 
     // Constructores
@@ -79,95 +80,56 @@ public class Salon implements Serializable {
         this.id = id;
     }
 
-    // Getters y Setters
-    public Long getId() {
-        return id;
+    // ⭐ Propiedad virtual para JSON (Base64)
+    @Transient
+    public String getImagenMesa() {
+        if (imagenMesaBytes != null && imagenMesaBytes.length > 0) {
+            return Base64.getEncoder().encodeToString(imagenMesaBytes);
+        }
+        return null;
     }
 
-    public void setId(Long id) {
-        this.id = id;
+    public void setImagenMesa(String base64) {
+        if (base64 != null && !base64.isEmpty()) {
+            this.imagenMesaBytes = Base64.getDecoder().decode(base64);
+        } else {
+            this.imagenMesaBytes = null;
+        }
     }
 
-    public String getNombre() {
-        return nombre;
-    }
+    // Getters y Setters normales
+    public Long getId() { return id; }
+    public void setId(Long id) { this.id = id; }
 
-    public void setNombre(String nombre) {
-        this.nombre = nombre;
-    }
+    public String getNombre() { return nombre; }
+    public void setNombre(String nombre) { this.nombre = nombre; }
 
-    public String getTipo() {
-        return tipo;
-    }
+    public String getTipo() { return tipo; }
+    public void setTipo(String tipo) { this.tipo = tipo; }
 
-    public void setTipo(String tipo) {
-        this.tipo = tipo;
-    }
+    public byte[] getImagenMesaBytes() { return imagenMesaBytes; }
+    public void setImagenMesaBytes(byte[] bytes) { this.imagenMesaBytes = bytes; }
 
-    public byte[] getImagenMesa() {
-        return imagenMesa;
-    }
+    public String getTipoImagen() { return tipoImagen; }
+    public void setTipoImagen(String tipoImagen) { this.tipoImagen = tipoImagen; }
 
-    public void setImagenMesa(byte[] imagenMesa) {
-        this.imagenMesa = imagenMesa;
-    }
+    public String getCobraServicio() { return cobraServicio; }
+    public void setCobraServicio(String cobraServicio) { this.cobraServicio = cobraServicio; }
 
-    public String getTipoImagen() {
-        return tipoImagen;
-    }
+    public String getEstado() { return estado; }
+    public void setEstado(String estado) { this.estado = estado; }
 
-    public void setTipoImagen(String tipoImagen) {
-        this.tipoImagen = tipoImagen;
-    }
+    public Long getVersion() { return version; }
+    public void setVersion(Long version) { this.version = version; }
 
-    public String getCobraServicio() {
-        return cobraServicio;
-    }
-
-    public void setCobraServicio(String cobraServicio) {
-        this.cobraServicio = cobraServicio;
-    }
-
-    public String getEstado() {
-        return estado;
-    }
-
-    public void setEstado(String estado) {
-        this.estado = estado;
-    }
-
-    public Long getVersion() {
-        return version;
-    }
-
-    public void setVersion(Long version) {
-        this.version = version;
-    }
-
-    public List<Mesa> getMesas() {
-        return mesas;
-    }
-
-    public void setMesas(List<Mesa> mesas) {
-        this.mesas = mesas;
-    }
+    public List<Mesa> getMesas() { return mesas; }
+    public void setMesas(List<Mesa> mesas) { this.mesas = mesas; }
 
     // Métodos auxiliares
-    public boolean isSalon() {
-        return "SALON".equals(this.tipo);
-    }
-
-    public boolean isBarra() {
-        return "BARRA".equals(this.tipo);
-    }
-
-    public boolean cobraServicio() {
-        return "S".equals(this.cobraServicio);
-    }
-
-    public boolean isActivo() {
-        return "A".equals(this.estado);
-    }
+    public boolean isSalon() { return "SALON".equals(this.tipo); }
+    public boolean isBarra() { return "BARRA".equals(this.tipo); }
+    public boolean cobraServicio() { return "S".equals(this.cobraServicio); }
+    public boolean isActivo() { return "A".equals(this.estado); }
 
     public void addMesa(Mesa mesa) {
         mesas.add(mesa);
@@ -181,16 +143,12 @@ public class Salon implements Serializable {
 
     @Override
     public int hashCode() {
-        int hash = 0;
-        hash += (id != null ? id.hashCode() : 0);
-        return hash;
+        return (id != null ? id.hashCode() : 0);
     }
 
     @Override
     public boolean equals(Object object) {
-        if (!(object instanceof Salon)) {
-            return false;
-        }
+        if (!(object instanceof Salon)) return false;
         Salon other = (Salon) object;
         return (this.id != null || other.id == null) && (this.id == null || this.id.equals(other.id));
     }
