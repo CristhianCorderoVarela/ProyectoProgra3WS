@@ -39,18 +39,18 @@ public class OrdenRest {
     }
 
     @GET
-    @Path("/abiertas")
-    public Response findAbiertas() {
-        try {
-            List<Orden> ordenes = ordenService.findAbiertas();
-            return Response.ok(createResponse(true, "Órdenes abiertas obtenidas", ordenes)).build();
-        } catch (Exception e) {
-            LOG.log(Level.SEVERE, "Error al obtener órdenes abiertas", e);
-            return Response.status(Response.Status.INTERNAL_SERVER_ERROR)
-                    .entity(createResponse(false, "Error: " + e.getMessage(), null))
-                    .build();
-        }
+@Path("/activas")
+public Response findAbiertas() {
+    try {
+        List<Orden> ordenes = ordenService.findAbiertas();
+        return Response.ok(createResponse(true, "Órdenes activas obtenidas", ordenes)).build();
+    } catch (Exception e) {
+        LOG.log(Level.SEVERE, "Error al obtener órdenes activas", e);
+        return Response.status(Response.Status.INTERNAL_SERVER_ERROR)
+                .entity(createResponse(false, "Error: " + e.getMessage(), null))
+                .build();
     }
+}
 
     @GET
     @Path("/{id}")
@@ -186,7 +186,9 @@ public class OrdenRest {
                     .build();
         }
     }
-
+    
+    
+    
     @DELETE
     @Path("/detalles/{detalleId}")
     public Response eliminarDetalle(@PathParam("detalleId") Long detalleId) {

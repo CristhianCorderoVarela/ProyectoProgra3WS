@@ -302,6 +302,7 @@ public class OrdenService {
             throw new RuntimeException("Error al listar detalles: " + e.getMessage());
         }
     }
+    
 
     /**
      * Marca una orden como facturada
