@@ -138,6 +138,20 @@ public class ProductoRest {
                     .build();
         }
     }
+    
+    @GET
+@Path("/activos")
+public Response findActivos() {
+    try {
+        List<Producto> productos = productoService.findActivos();
+        return Response.ok(createResponse(true, "Productos activos obtenidos", productos)).build();
+    } catch (Exception e) {
+        LOG.log(Level.SEVERE, "Error al obtener productos activos", e);
+        return Response.status(Response.Status.INTERNAL_SERVER_ERROR)
+                .entity(createResponse(false, "Error: " + e.getMessage(), null))
+                .build();
+    }
+}
 
     @POST
     public Response create(Producto producto) {
