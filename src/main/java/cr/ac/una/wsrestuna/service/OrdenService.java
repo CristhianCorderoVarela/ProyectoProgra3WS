@@ -41,21 +41,61 @@ public class OrdenService {
      * Crea una nueva orden
      * Si tiene mesa asociada, la marca como ocupada
      */
-    public Orden create(Orden orden) {
+   public Orden create(Orden orden) {
         try {
-            em.persist(orden);
-            
-            // Si la orden tiene mesa, ocuparla
-            if (orden.getMesa() != null) {
-                salonService.ocuparMesa(orden.getMesa().getId());
+            // ---- USUARIO (OBLIGATORIO) ----
+            if (orden.getUsuario() == null) {
+                if (orden.getUsuarioId() == null) {
+                    throw new IllegalArgumentException("usuarioId es obligatorio");
+                }
+                orden.setUsuario(em.getReference(cr.ac.una.wsrestuna.model.Usuario.class, orden.getUsuarioId()));
             }
-            
+
+            // ---- MESA (OPCIONAL) ----
+            if (orden.getMesa() == null && orden.getMesaId() != null) {
+                orden.setMesa(em.getReference(cr.ac.una.wsrestuna.model.Mesa.class, orden.getMesaId()));
+            }
+
+            // ---- CAMPOS POR DEFECTO ----
+            if (orden.getFechaHora() == null) {
+                orden.setFechaHora(LocalDateTime.now());
+            }
+            if (orden.getEstado() == null || orden.getEstado().isBlank()) {
+                orden.setEstado("ABIERTA");
+            }
+
+            // ---- DETALLES ----
+            if (orden.getDetalles() != null) {
+                for (cr.ac.una.wsrestuna.model.DetalleOrden d : orden.getDetalles()) {
+                    // asegura la bidireccionalidad
+                    d.setOrden(orden);
+
+                    // Si usas productoId transient en DetalleOrden:
+                    try {
+                        java.lang.reflect.Method mGet = d.getClass().getMethod("getProductoId");
+                        Object pid = mGet.invoke(d);
+                        if (d.getProducto() == null && pid != null) {
+                            Long productoId = ((Number) pid).longValue();
+                            d.setProducto(em.getReference(cr.ac.una.wsrestuna.model.Producto.class, productoId));
+                        }
+                    } catch (NoSuchMethodException ignore) {
+                        // si tu DetalleOrden no tiene productoId transient, no pasa nada
+                    }
+
+                    // Si tienes un método para recalcular:
+                    try {
+                        d.getClass().getMethod("calcularSubtotal").invoke(d);
+                    } catch (NoSuchMethodException ignore) {
+                    }
+                }
+            }
+
+            em.persist(orden);
             em.flush();
-            LOG.log(Level.INFO, "Orden creada: {0}", orden.getId());
             return orden;
+
         } catch (Exception e) {
-            LOG.log(Level.SEVERE, "Error al crear orden", e);
-            throw new RuntimeException("Error al crear orden: " + e.getMessage());
+            throw new RuntimeException("Error al crear orden", e);
         }
     }
 
