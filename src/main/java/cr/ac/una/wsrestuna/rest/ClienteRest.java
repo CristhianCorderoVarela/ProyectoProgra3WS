@@ -12,6 +12,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.util.stream.Collectors;
 
 /**
  * Endpoint REST para clientes
@@ -64,24 +65,37 @@ public class ClienteRest {
     }
 
     @GET
-    @Path("/buscar")
-    public Response buscarPorNombre(@QueryParam("nombre") String nombre) {
-        try {
-            if (nombre == null || nombre.trim().isEmpty()) {
-                return Response.status(Response.Status.BAD_REQUEST)
-                        .entity(createResponse(false, "Nombre requerido", null))
-                        .build();
-            }
+@Path("/buscar")
+public Response buscar(
+        @QueryParam("q") String q,
+        @QueryParam("nombre") String nombre,
+        @QueryParam("correo") String correo,
+        @QueryParam("telefono") String telefono) {
+    try {
+        // 1) Tomamos el primer parámetro no vacío
+        String term = (q != null && !q.isBlank()) ? q
+                : (nombre != null && !nombre.isBlank()) ? nombre
+                : (correo != null && !correo.isBlank()) ? correo
+                : (telefono != null && !telefono.isBlank()) ? telefono
+                : null;
 
-            List<Cliente> clientes = clienteService.buscarPorNombre(nombre);
-            return Response.ok(createResponse(true, "Búsqueda completada", clientes)).build();
-        } catch (Exception e) {
-            LOG.log(Level.SEVERE, "Error al buscar clientes", e);
-            return Response.status(Response.Status.INTERNAL_SERVER_ERROR)
-                    .entity(createResponse(false, "Error: " + e.getMessage(), null))
+        if (term == null) {
+            return Response.status(Response.Status.BAD_REQUEST)
+                    .entity(createResponse(false, "Parámetro de búsqueda requerido (q, nombre, correo o telefono)", null))
                     .build();
         }
+
+        // 2) Buscar por nombre/correo/teléfono (tel. ignora guiones en el service)
+        List<Cliente> resultados = clienteService.buscarPorNombre(term);
+
+        return Response.ok(createResponse(true, "Búsqueda completada", resultados)).build();
+    } catch (Exception e) {
+        LOG.log(Level.SEVERE, "Error al buscar clientes", e);
+        return Response.status(Response.Status.INTERNAL_SERVER_ERROR)
+                .entity(createResponse(false, "Error: " + e.getMessage(), null))
+                .build();
     }
+}
 
     @GET
     @Path("/correo/{correo}")

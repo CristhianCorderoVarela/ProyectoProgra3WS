@@ -103,17 +103,42 @@ public class ClienteService {
         }
     }
 
-    public List<Cliente> buscarPorNombre(String nombre) {
-        try {
-            TypedQuery<Cliente> query = em.createNamedQuery("Cliente.findByNombre", Cliente.class);
-            query.setParameter("nombre", "%" + nombre.toUpperCase() + "%");
-            return query.getResultList();
-        } catch (Exception e) {
-            LOG.log(Level.SEVERE, "Error al buscar clientes por nombre", e);
-            throw new RuntimeException("Error: " + e.getMessage());
+    public List<Cliente> buscarPorNombre(String termino) {
+    try {
+        if (termino == null) termino = "";
+        String q = termino.trim();
+        if (q.isEmpty()) {
+            return java.util.Collections.emptyList();
         }
-    }
 
+        String like = "%" + q.toUpperCase() + "%";
+        String likeRaw = "%" + q + "%";
+        String digits = q.replaceAll("\\D+", "");
+        String likeDigits = "%" + digits + "%";
+
+        // REPLACE en teléfono para ignorar guiones/espacios (function() de Hibernate)
+        TypedQuery<Cliente> query = em.createQuery("""
+                SELECT c
+                FROM Cliente c
+                WHERE c.estado = 'A'
+                  AND (
+                         UPPER(c.nombre) LIKE :f
+                      OR UPPER(c.correo) LIKE :f
+                      OR c.telefono LIKE :fRaw
+                      OR function('REPLACE', c.telefono, '-', '') LIKE :fDigits
+                  )
+                """, Cliente.class);
+        query.setParameter("f", like);
+        query.setParameter("fRaw", likeRaw);
+        query.setParameter("fDigits", likeDigits);
+
+        return query.getResultList();
+    } catch (Exception e) {
+        LOG.log(Level.SEVERE, "Error al buscar clientes (flexible)", e);
+        throw new RuntimeException("Error: " + e.getMessage());
+    }
+}
+    
     public Cliente getOrCreateByCorreo(String correo, String nombre) {
         try {
             Optional<Cliente> clienteOpt = findByCorreo(correo);
