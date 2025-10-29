@@ -48,74 +48,89 @@ public class FacturaService {
     /**
      * Crea una factura desde una orden existente
      */
-    public Factura createFromOrden(Long ordenId, Long clienteId, Long usuarioId, 
-                                    boolean aplicaImpuestoVenta, boolean aplicaImpuestoServicio,
-                                    BigDecimal descuento, BigDecimal montoEfectivo, 
-                                    BigDecimal montoTarjeta) {
-        try {
-            // Obtener orden
-            Orden orden = ordenService.findById(ordenId)
-                    .orElseThrow(() -> new RuntimeException("Orden no encontrada"));
+    public Factura createFromOrden(Long ordenId,
+                               Long clienteId,
+                               Long usuarioId,
+                               boolean aplicaImpuestoVenta,
+                               boolean aplicaImpuestoServicio,
+                               java.math.BigDecimal descuento,
+                               java.math.BigDecimal montoEfectivo,
+                               java.math.BigDecimal montoTarjeta) {
+    try {
+        // 1. Cargar la orden
+        Orden orden = ordenService.findById(ordenId)
+                .orElseThrow(() -> new RuntimeException("Orden no encontrada"));
 
-            // Obtener o crear caja abierta
-            CierreCaja cajaAbierta = cierreCajaService.getOrCreateCajaAbierta(usuarioId);
-
-            // Crear factura
-            Factura factura = new Factura();
-            factura.setOrden(orden);
-            factura.setUsuario(em.getReference(Usuario.class, usuarioId));
-            factura.setCierreCaja(cajaAbierta);
-            
-            if (clienteId != null) {
-                factura.setCliente(em.getReference(Cliente.class, clienteId));
+        // 2. Determinar el cajero / usuario responsable
+        Long usuarioEfectivoId = usuarioId;
+        if (usuarioEfectivoId == null) {
+            if (orden.getUsuario() != null && orden.getUsuario().getId() != null) {
+                usuarioEfectivoId = orden.getUsuario().getId();
+            } else {
+                throw new RuntimeException("No se puede determinar el usuario/cajero de la orden");
             }
-
-            // Copiar detalles de la orden
-            List<DetalleOrden> detallesOrden = ordenService.findDetallesByOrden(ordenId);
-            for (DetalleOrden detOrden : detallesOrden) {
-                DetalleFactura detFactura = new DetalleFactura();
-                detFactura.setProducto(detOrden.getProducto());
-                detFactura.setCantidad(detOrden.getCantidad());
-                detFactura.setPrecioUnitario(detOrden.getPrecioUnitario());
-                detFactura.calcularSubtotal();
-                factura.addDetalle(detFactura);
-            }
-
-            // Calcular totales
-            calcularTotales(factura, aplicaImpuestoVenta, aplicaImpuestoServicio, descuento);
-
-            // Establecer pagos
-            factura.setMontoEfectivo(montoEfectivo);
-            factura.setMontoTarjeta(montoTarjeta);
-            calcularVuelto(factura);
-
-            // Persistir factura
-            em.persist(factura);
-            
-            // Marcar orden como facturada
-            ordenService.marcarComoFacturada(ordenId);
-
-            // Liberar mesa si existe
-            if (orden.getMesa() != null) {
-                salonService.liberarMesa(orden.getMesa().getId());
-            }
-
-            // Incrementar contadores de ventas
-            for (DetalleFactura detalle : factura.getDetalles()) {
-                productoService.incrementarVentas(
-                    detalle.getProducto().getId(), 
-                    detalle.getCantidad()
-                );
-            }
-
-            em.flush();
-            LOG.log(Level.INFO, "Factura creada: {0}", factura.getId());
-            return factura;
-        } catch (Exception e) {
-            LOG.log(Level.SEVERE, "Error al crear factura", e);
-            throw new RuntimeException("Error al crear factura: " + e.getMessage());
         }
+
+        // 3. Obtener o crear la caja abierta de ese usuario
+        CierreCaja cajaAbierta = cierreCajaService.getOrCreateCajaAbierta(usuarioEfectivoId);
+
+        // 4. Crear la factura
+        Factura factura = new Factura();
+        factura.setOrden(orden);
+        factura.setUsuario(em.getReference(Usuario.class, usuarioEfectivoId));
+        factura.setCierreCaja(cajaAbierta);
+
+        if (clienteId != null) {
+            factura.setCliente(em.getReference(Cliente.class, clienteId));
+        }
+
+        // 5. Copiar los detalles desde la Orden
+        List<DetalleOrden> detallesOrden = ordenService.findDetallesByOrden(ordenId);
+        for (DetalleOrden detOrden : detallesOrden) {
+            DetalleFactura detFactura = new DetalleFactura();
+            detFactura.setProducto(detOrden.getProducto());
+            detFactura.setCantidad(detOrden.getCantidad());
+            detFactura.setPrecioUnitario(detOrden.getPrecioUnitario());
+            detFactura.calcularSubtotal();
+            factura.addDetalle(detFactura);
+        }
+
+        // 6. Calcular totales (impuestos, descuento %, total)
+        calcularTotales(factura, aplicaImpuestoVenta, aplicaImpuestoServicio, descuento);
+
+        // 7. Registrar pagos y vuelto
+        factura.setMontoEfectivo(montoEfectivo);
+        factura.setMontoTarjeta(montoTarjeta);
+        calcularVuelto(factura);
+
+        // 8. Persistir factura
+        em.persist(factura);
+
+        // 9. Marcar orden como FACTURADA
+        ordenService.marcarComoFacturada(ordenId);
+
+        // 10. Liberar mesa (si aplica)
+        if (orden.getMesa() != null) {
+            salonService.liberarMesa(orden.getMesa().getId());
+        }
+
+        // 11. Actualizar contadores de ventas por producto
+        for (DetalleFactura detalle : factura.getDetalles()) {
+            productoService.incrementarVentas(
+                    detalle.getProducto().getId(),
+                    detalle.getCantidad()
+            );
+        }
+
+        em.flush();
+        LOG.log(Level.INFO, "Factura creada: {0}", factura.getId());
+        return factura;
+
+    } catch (Exception e) {
+        LOG.log(Level.SEVERE, "Error al crear factura", e);
+        throw new RuntimeException("Error al crear factura: " + e.getMessage());
     }
+}
 
     /**
      * Crea una factura rápida directa (sin orden previa)

@@ -228,6 +228,23 @@ public Response actualizarDetalleCantidad(
                 .build();
     }
 }
+
+
+@POST
+@Path("/{id}/facturar")
+public Response facturar(@PathParam("id") Long id) {
+    try {
+        ordenService.marcarComoFacturada(id);
+        return Response.ok(
+                createResponse(true, "Orden marcada como FACTURADA", null)
+        ).build();
+    } catch (Exception e) {
+        LOG.log(Level.SEVERE, "Error al marcar orden como facturada", e);
+        return Response.status(Response.Status.INTERNAL_SERVER_ERROR)
+                .entity(createResponse(false, "Error: " + e.getMessage(), null))
+                .build();
+    }
+}
     
     
     

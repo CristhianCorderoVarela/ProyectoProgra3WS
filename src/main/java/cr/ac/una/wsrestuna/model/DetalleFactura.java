@@ -4,6 +4,7 @@
  */
 package cr.ac.una.wsrestuna.model;
 
+import jakarta.json.bind.annotation.JsonbTransient;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Min;
@@ -26,6 +27,7 @@ public class DetalleFactura implements Serializable {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "factura_id", nullable = false)
+    @JsonbTransient
     private Factura factura;
 
     @ManyToOne(fetch = FetchType.EAGER)
