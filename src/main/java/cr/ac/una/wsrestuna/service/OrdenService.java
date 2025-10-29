@@ -225,18 +225,53 @@ public class OrdenService {
     // ==================== GESTIÓN DE DETALLES ====================
 
     /**
-     * Agrega un producto a la orden
-     */
-    public DetalleOrden agregarDetalle(Long ordenId, Long productoId, Integer cantidad) {
-        try {
-            Orden orden = em.find(Orden.class, ordenId);
-            Producto producto = em.find(Producto.class, productoId);
-            
-            if (orden == null || producto == null) {
-                throw new RuntimeException("Orden o producto no encontrado");
-            }
+ * Agrega un producto a la orden.
+ *
+ * Nueva lógica:
+ * - Si la orden ya tiene ese producto, se suma la cantidad y se recalcula subtotal.
+ * - Si no, se crea un DetalleOrden nuevo.
+ */
+public DetalleOrden agregarDetalle(Long ordenId, Long productoId, Integer cantidad) {
+    try {
+        Orden orden = em.find(Orden.class, ordenId);
+        Producto producto = em.find(Producto.class, productoId);
 
-            DetalleOrden detalle = new DetalleOrden();
+        if (orden == null || producto == null) {
+            throw new RuntimeException("Orden o producto no encontrado");
+        }
+
+        // ¿Ya existe un detalle con este producto en esta orden?
+        TypedQuery<DetalleOrden> q = em.createQuery(
+                "SELECT d FROM DetalleOrden d " +
+                "WHERE d.orden.id = :ordenId AND d.producto.id = :prodId",
+                DetalleOrden.class
+        );
+        q.setParameter("ordenId", ordenId);
+        q.setParameter("prodId", productoId);
+
+        List<DetalleOrden> existentes = q.getResultList();
+
+        DetalleOrden detalle;
+        if (!existentes.isEmpty()) {
+            // Ya existe una línea con ese producto → sumamos
+            detalle = existentes.get(0);
+            detalle.setCantidad(detalle.getCantidad() + cantidad);
+
+            // opcionalmente refrescar precio unitario por si cambió
+            detalle.setPrecioUnitario(producto.getPrecio());
+
+            detalle.calcularSubtotal();
+
+            em.merge(detalle);
+            em.flush();
+
+            LOG.log(Level.INFO,
+                    "Cantidad actualizada en detalle existente (orden {0}, prod {1}) -> cant {2}",
+                    new Object[]{ordenId, producto.getNombre(), detalle.getCantidad()});
+
+        } else {
+            // No existe todavía → creamos nueva línea
+            detalle = new DetalleOrden();
             detalle.setOrden(orden);
             detalle.setProducto(producto);
             detalle.setCantidad(cantidad);
@@ -245,16 +280,67 @@ public class OrdenService {
 
             em.persist(detalle);
             em.flush();
-            
-            LOG.log(Level.INFO, "Detalle agregado a orden {0}: {1}", 
-                    new Object[]{ordenId, producto.getNombre()});
-            
-            return detalle;
-        } catch (Exception e) {
-            LOG.log(Level.SEVERE, "Error al agregar detalle", e);
-            throw new RuntimeException("Error al agregar detalle: " + e.getMessage());
+
+            LOG.log(Level.INFO,
+                    "Detalle agregado a orden {0}: {1} x{2}",
+                    new Object[]{ordenId, producto.getNombre(), cantidad});
         }
+
+        return detalle;
+
+    } catch (Exception e) {
+        LOG.log(Level.SEVERE, "Error al agregar detalle", e);
+        throw new RuntimeException("Error al agregar detalle: " + e.getMessage());
     }
+}
+
+
+/**
+ * Actualiza la cantidad exacta de un detalle existente dentro de una orden.
+ * Se usa en PUT /ordenes/{ordenId}/detalles/{detalleId}
+ */
+public DetalleOrden actualizarCantidadDetalle(Long ordenId, Long detalleId, Integer nuevaCantidad) {
+    try {
+        // 1. Buscar el detalle
+        DetalleOrden detalle = em.find(DetalleOrden.class, detalleId);
+        if (detalle == null) {
+            throw new RuntimeException("Detalle no encontrado");
+        }
+
+        // 2. Validar que el detalle pertenezca a esa orden
+        if (detalle.getOrden() == null ||
+            detalle.getOrden().getId() == null ||
+            !detalle.getOrden().getId().equals(ordenId)) {
+
+            throw new RuntimeException("El detalle no pertenece a la orden indicada");
+        }
+
+        // 3. Actualizar cantidad
+        detalle.setCantidad(nuevaCantidad);
+
+        // asegurar precio correcto por unidad (por si cambió el precio del producto)
+        if (detalle.getProducto() != null && detalle.getProducto().getPrecio() != null) {
+            detalle.setPrecioUnitario(detalle.getProducto().getPrecio());
+        }
+
+        // 4. Recalcular subtotal
+        detalle.calcularSubtotal();
+
+        // 5. Guardar cambios
+        DetalleOrden merged = em.merge(detalle);
+        em.flush();
+
+        LOG.log(Level.INFO,
+                "Detalle actualizado (orden {0}, detalle {1}) nueva cantidad {2}",
+                new Object[]{ordenId, detalleId, nuevaCantidad});
+
+        return merged;
+
+    } catch (Exception e) {
+        LOG.log(Level.SEVERE, "Error al actualizar cantidad del detalle", e);
+        throw new RuntimeException("Error al actualizar detalle: " + e.getMessage());
+    }
+}
 
     /**
      * Actualiza un detalle existente

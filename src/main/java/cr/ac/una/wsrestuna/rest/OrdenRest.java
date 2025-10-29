@@ -169,23 +169,65 @@ public Response findAbiertas() {
     }
 
     @POST
-    @Path("/{ordenId}/detalles")
-    public Response agregarDetalle(@PathParam("ordenId") Long ordenId, Map<String, Object> datos) {
-        try {
-            Long productoId = Long.valueOf(datos.get("productoId").toString());
-            Integer cantidad = Integer.valueOf(datos.get("cantidad").toString());
+@Path("/{ordenId}/detalles")
+public Response agregarDetalle(@PathParam("ordenId") Long ordenId, Map<String, Object> datos) {
+    try {
+        Long productoId = Long.valueOf(datos.get("productoId").toString());
+        Integer cantidad = Integer.valueOf(datos.get("cantidad").toString());
 
-            DetalleOrden detalle = ordenService.agregarDetalle(ordenId, productoId, cantidad);
-            return Response.status(Response.Status.CREATED)
-                    .entity(createResponse(true, "Detalle agregado exitosamente", detalle))
-                    .build();
-        } catch (Exception e) {
-            LOG.log(Level.SEVERE, "Error al agregar detalle", e);
-            return Response.status(Response.Status.INTERNAL_SERVER_ERROR)
-                    .entity(createResponse(false, "Error: " + e.getMessage(), null))
+        DetalleOrden detalle = ordenService.agregarDetalle(ordenId, productoId, cantidad);
+        return Response.status(Response.Status.CREATED)
+                .entity(createResponse(true, "Detalle agregado/actualizado exitosamente", detalle))
+                .build();
+    } catch (Exception e) {
+        LOG.log(Level.SEVERE, "Error al agregar detalle", e);
+        return Response.status(Response.Status.INTERNAL_SERVER_ERROR)
+                .entity(createResponse(false, "Error: " + e.getMessage(), null))
+                .build();
+    }
+}
+
+
+// PUT /ordenes/{ordenId}/detalles/{detalleId}
+// Body esperado: { "cantidad": 7 }
+@PUT
+@Path("/{ordenId}/detalles/{detalleId}")
+public Response actualizarDetalleCantidad(
+        @PathParam("ordenId") Long ordenId,
+        @PathParam("detalleId") Long detalleId,
+        Map<String, Object> datos
+) {
+    try {
+        if (datos == null || !datos.containsKey("cantidad")) {
+            return Response.status(Response.Status.BAD_REQUEST)
+                    .entity(createResponse(false, "Cantidad requerida", null))
                     .build();
         }
+
+        Integer nuevaCantidad = Integer.valueOf(datos.get("cantidad").toString());
+        if (nuevaCantidad <= 0) {
+            return Response.status(Response.Status.BAD_REQUEST)
+                    .entity(createResponse(false, "La cantidad debe ser mayor que cero", null))
+                    .build();
+        }
+
+        DetalleOrden actualizado = ordenService.actualizarCantidadDetalle(
+                ordenId,
+                detalleId,
+                nuevaCantidad
+        );
+
+        return Response.ok(
+                createResponse(true, "Detalle actualizado exitosamente", actualizado)
+        ).build();
+
+    } catch (Exception e) {
+        LOG.log(Level.SEVERE, "Error al actualizar cantidad del detalle", e);
+        return Response.status(Response.Status.INTERNAL_SERVER_ERROR)
+                .entity(createResponse(false, "Error: " + e.getMessage(), null))
+                .build();
     }
+}
     
     
     
