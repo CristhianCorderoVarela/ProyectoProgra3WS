@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project name="maven-antrun-" default="main">
+  <target name="main">
+    <echo file="C:\Users\Ericka\Desktop\CURSOS\Programacion III\Proyecto Progra 3\ProyectoProgra3WS\target/WsRestUNA-1.0/docs/swagger-initializer.js">window.onload = function() {
+  const ui = SwaggerUIBundle({
+    url: "/ProyectoProgra3WS/api/openapi.json",
+    dom_id: '#swagger-ui',
+    deepLinking: true,
+    presets: [SwaggerUIBundle.presets.apis, SwaggerUIStandalonePreset],
+    layout: "StandaloneLayout"
+  });
+  window.ui = ui;
+};</echo>
+  </target>
+</project>
