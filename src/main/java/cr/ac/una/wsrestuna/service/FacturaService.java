@@ -187,76 +187,72 @@ public class FacturaService {
     }
 
     private void calcularTotales(Factura factura, boolean aplicaImpVenta,
-            boolean aplicaImpServicio, BigDecimal descuentoPct) {
+            boolean aplicaImpServicio, BigDecimal descuentoPorcentaje) {
         try {
-            System.out.println("====== calcularTotales() ======");
-            System.out.println("aplicaImpVenta: " + aplicaImpVenta);
-            System.out.println("aplicaImpServicio: " + aplicaImpServicio);
-            System.out.println("descuentoPct recibido: " + descuentoPct + "%");
-
-            // Obtener parámetros para validación
+            // Obtener parámetros
             Parametros params = parametrosService.getParametros()
                     .orElseThrow(() -> new RuntimeException("Parámetros no configurados"));
 
-            // 1. Calcular subtotal desde detalles
+            // 1. Calcular subtotal
             BigDecimal subtotal = BigDecimal.ZERO;
             for (DetalleFactura detalle : factura.getDetalles()) {
                 subtotal = subtotal.add(detalle.getSubtotal());
             }
             factura.setSubtotal(subtotal);
-            System.out.println("Subtotal calculado: " + subtotal);
 
-            // 2. Calcular impuestos sobre el subtotal
+            // 2. Calcular impuesto de venta
             BigDecimal impVenta = BigDecimal.ZERO;
             if (aplicaImpVenta) {
                 impVenta = params.calcularImpuestoVenta(subtotal);
             }
             factura.setImpuestoVenta(impVenta);
-            System.out.println("Impuesto Venta: " + impVenta);
 
+            // 3. Calcular impuesto de servicio
             BigDecimal impServicio = BigDecimal.ZERO;
             if (aplicaImpServicio) {
                 impServicio = params.calcularImpuestoServicio(subtotal);
             }
             factura.setImpuestoServicio(impServicio);
-            System.out.println("Impuesto Servicio: " + impServicio);
 
-            // 3. Validar descuento porcentaje
-            BigDecimal descPct = descuentoPct != null ? descuentoPct : BigDecimal.ZERO;
-            if (descPct.compareTo(BigDecimal.ZERO) < 0) {
-                descPct = BigDecimal.ZERO;
+            // 4. **FIX: Validar descuento contra máximo permitido**
+            BigDecimal descuentoPct = descuentoPorcentaje != null ? descuentoPorcentaje : BigDecimal.ZERO;
+            if (descuentoPct.compareTo(BigDecimal.ZERO) < 0) {
+                descuentoPct = BigDecimal.ZERO;
             }
 
-            System.out.println("Descuento % validado: " + descPct);
-            System.out.println("Descuento máximo permitido: " + params.getPorcDescuentoMaximo());
+            // **FIX CRÍTICO: Validación mejorada con logging**
+            BigDecimal descuentoMaximo = params.getPorcDescuentoMaximo();
 
-            // Validar contra máximo (con tolerancia de 0.01% para errores de redondeo)
-            BigDecimal maxDescuento = params.getPorcDescuentoMaximo().add(new BigDecimal("0.01"));
-            if (descPct.compareTo(maxDescuento) > 0) {
+            LOG.log(Level.INFO, String.format(
+                    "Validación descuento: solicitado=%.2f%%, máximo=%.2f%%",
+                    descuentoPct, descuentoMaximo));
+
+            if (descuentoPct.compareTo(descuentoMaximo) > 0) {
                 throw new RuntimeException(
                         String.format("Descuento %.2f%% excede el máximo permitido de %.2f%%",
-                                descPct, params.getPorcDescuentoMaximo())
+                                descuentoPct, descuentoMaximo)
                 );
             }
 
-            // 4. Calcular descuento en MONTO sobre (subtotal + impuestos)
-            BigDecimal baseDescuento = subtotal.add(impVenta).add(impServicio);
+            // 5. **FIX: Calcular descuento sobre base correcta (subtotal + impuestos)**
+            BigDecimal baseImponible = subtotal.add(impVenta).add(impServicio);
             BigDecimal descuentoMonto = BigDecimal.ZERO;
 
-            if (descPct.compareTo(BigDecimal.ZERO) > 0) {
-                descuentoMonto = baseDescuento
-                        .multiply(descPct)
+            if (descuentoPct.compareTo(BigDecimal.ZERO) > 0) {
+                descuentoMonto = baseImponible
+                        .multiply(descuentoPct)
                         .divide(new BigDecimal("100"), 2, RoundingMode.HALF_UP);
             }
             factura.setDescuento(descuentoMonto);
-            System.out.println("Base para descuento: " + baseDescuento);
-            System.out.println("Descuento MONTO: " + descuentoMonto);
 
-            // 5. Total final
-            BigDecimal total = baseDescuento.subtract(descuentoMonto);
+            // 6. Total final
+            BigDecimal total = baseImponible.subtract(descuentoMonto);
             factura.setTotal(total);
-            System.out.println("TOTAL FINAL: " + total);
-            System.out.println("===============================");
+
+            LOG.log(Level.INFO, String.format(
+                    "Totales calculados: Subtotal=%.2f, ImpVenta=%.2f, ImpServ=%.2f, "
+                    + "Descuento=%.2f (%.2f%%), Total=%.2f",
+                    subtotal, impVenta, impServicio, descuentoMonto, descuentoPct, total));
 
         } catch (Exception e) {
             LOG.log(Level.SEVERE, "Error al calcular totales", e);
@@ -265,38 +261,43 @@ public class FacturaService {
     }
 
     /**
-     * Calcula el vuelto con tolerancia para errores de redondeo
+     * **FIX: Calcular vuelto con validación robusta y tolerancia** Ubicación
+     * original: línea ~269
      */
     private void calcularVuelto(Factura factura) {
         BigDecimal totalRecibido = factura.getMontoEfectivo().add(factura.getMontoTarjeta());
         BigDecimal totalFactura = factura.getTotal();
 
-        System.out.println("====== calcularVuelto() ======");
-        System.out.println("Total Factura: " + totalFactura);
-        System.out.println("Total Recibido: " + totalRecibido);
-
-        // Diferencia = recibido - total
+        // **FIX: Usar compareTo para comparación precisa**
+        // Permitir una tolerancia mínima de 0.01 para errores de redondeo
         BigDecimal diferencia = totalRecibido.subtract(totalFactura);
-        System.out.println("Diferencia: " + diferencia);
-
-        // Tolerancia de 1 centavo para errores de redondeo
         BigDecimal tolerancia = new BigDecimal("0.01");
 
-        // Solo error si falta MÁS de 1 centavo
+        LOG.log(Level.INFO, String.format(
+                "Validación pago: Total=%.2f, Recibido=%.2f (Efectivo=%.2f + Tarjeta=%.2f), Diferencia=%.2f",
+                totalFactura, totalRecibido,
+                factura.getMontoEfectivo(), factura.getMontoTarjeta(),
+                diferencia));
+
+        // Validar que el pago es suficiente (considerando tolerancia)
         if (diferencia.compareTo(tolerancia.negate()) < 0) {
+            // Falta más de 1 centavo
             BigDecimal faltante = totalFactura.subtract(totalRecibido);
-            System.out.println("ERROR: Falta dinero: " + faltante);
+            LOG.log(Level.WARNING, String.format(
+                    "PAGO INSUFICIENTE: Falta %.2f (Total: %.2f, Recibido: %.2f)",
+                    faltante, totalFactura, totalRecibido));
+
             throw new RuntimeException(
                     String.format("Monto recibido insuficiente. Falta: %.2f (Total: %.2f, Recibido: %.2f)",
                             faltante, totalFactura, totalRecibido)
             );
         }
 
-        // Calcular vuelto (si es negativo por tolerancia, poner en cero)
+        // Calcular vuelto (si es negativo por tolerancia mínima, poner en cero)
         BigDecimal vuelto = diferencia.compareTo(BigDecimal.ZERO) > 0 ? diferencia : BigDecimal.ZERO;
         factura.setVuelto(vuelto);
-        System.out.println("Vuelto: " + vuelto);
-        System.out.println("=============================");
+
+        LOG.log(Level.INFO, String.format("Vuelto calculado: %.2f", vuelto));
     }
 
     /**

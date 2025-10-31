@@ -39,25 +39,25 @@ public class OrdenRest {
     }
 
     @GET
-@Path("/activas")
-public Response findAbiertas() {
-    try {
-        List<Orden> ordenes = ordenService.findAbiertas();
-        return Response.ok(createResponse(true, "Órdenes activas obtenidas", ordenes)).build();
-    } catch (Exception e) {
-        LOG.log(Level.SEVERE, "Error al obtener órdenes activas", e);
-        return Response.status(Response.Status.INTERNAL_SERVER_ERROR)
-                .entity(createResponse(false, "Error: " + e.getMessage(), null))
-                .build();
+    @Path("/activas")
+    public Response findAbiertas() {
+        try {
+            List<Orden> ordenes = ordenService.findAbiertas();
+            return Response.ok(createResponse(true, "Órdenes activas obtenidas", ordenes)).build();
+        } catch (Exception e) {
+            LOG.log(Level.SEVERE, "Error al obtener órdenes activas", e);
+            return Response.status(Response.Status.INTERNAL_SERVER_ERROR)
+                    .entity(createResponse(false, "Error: " + e.getMessage(), null))
+                    .build();
+        }
     }
-}
 
     @GET
     @Path("/{id}")
     public Response findById(@PathParam("id") Long id) {
         try {
             Optional<Orden> orden = ordenService.findById(id);
-            
+
             if (orden.isPresent()) {
                 return Response.ok(createResponse(true, "Orden encontrada", orden.get())).build();
             } else {
@@ -78,7 +78,7 @@ public Response findAbiertas() {
     public Response findByMesa(@PathParam("mesaId") Long mesaId) {
         try {
             Optional<Orden> orden = ordenService.findByMesa(mesaId);
-            
+
             if (orden.isPresent()) {
                 return Response.ok(createResponse(true, "Orden encontrada", orden.get())).build();
             } else {
@@ -120,7 +120,7 @@ public Response findAbiertas() {
     public Response update(@PathParam("id") Long id, Orden orden) {
         try {
             Optional<Orden> existente = ordenService.findById(id);
-            
+
             if (!existente.isPresent()) {
                 return Response.status(Response.Status.NOT_FOUND)
                         .entity(createResponse(false, "Orden no encontrada", null))
@@ -153,7 +153,6 @@ public Response findAbiertas() {
     }
 
     // GESTIÓN DE DETALLES
-
     @GET
     @Path("/{id}/detalles")
     public Response getDetalles(@PathParam("id") Long ordenId) {
@@ -169,88 +168,86 @@ public Response findAbiertas() {
     }
 
     @POST
-@Path("/{ordenId}/detalles")
-public Response agregarDetalle(@PathParam("ordenId") Long ordenId, Map<String, Object> datos) {
-    try {
-        Long productoId = Long.valueOf(datos.get("productoId").toString());
-        Integer cantidad = Integer.valueOf(datos.get("cantidad").toString());
+    @Path("/{ordenId}/detalles")
+    public Response agregarDetalle(@PathParam("ordenId") Long ordenId, Map<String, Object> datos) {
+        try {
+            Long productoId = Long.valueOf(datos.get("productoId").toString());
+            Integer cantidad = Integer.valueOf(datos.get("cantidad").toString());
 
-        DetalleOrden detalle = ordenService.agregarDetalle(ordenId, productoId, cantidad);
-        return Response.status(Response.Status.CREATED)
-                .entity(createResponse(true, "Detalle agregado/actualizado exitosamente", detalle))
-                .build();
-    } catch (Exception e) {
-        LOG.log(Level.SEVERE, "Error al agregar detalle", e);
-        return Response.status(Response.Status.INTERNAL_SERVER_ERROR)
-                .entity(createResponse(false, "Error: " + e.getMessage(), null))
-                .build();
+            DetalleOrden detalle = ordenService.agregarDetalle(ordenId, productoId, cantidad);
+            return Response.status(Response.Status.CREATED)
+                    .entity(createResponse(true, "Detalle agregado/actualizado exitosamente", detalle))
+                    .build();
+        } catch (Exception e) {
+            LOG.log(Level.SEVERE, "Error al agregar detalle", e);
+            return Response.status(Response.Status.INTERNAL_SERVER_ERROR)
+                    .entity(createResponse(false, "Error: " + e.getMessage(), null))
+                    .build();
+        }
     }
-}
-
 
 // PUT /ordenes/{ordenId}/detalles/{detalleId}
 // Body esperado: { "cantidad": 7 }
-@PUT
-@Path("/{ordenId}/detalles/{detalleId}")
-public Response actualizarDetalleCantidad(
-        @PathParam("ordenId") Long ordenId,
-        @PathParam("detalleId") Long detalleId,
-        Map<String, Object> datos
-) {
-    try {
-        if (datos == null || !datos.containsKey("cantidad")) {
-            return Response.status(Response.Status.BAD_REQUEST)
-                    .entity(createResponse(false, "Cantidad requerida", null))
+    @PUT
+    @Path("/{ordenId}/detalles/{detalleId}")
+    public Response actualizarDetalleCantidad(
+            @PathParam("ordenId") Long ordenId,
+            @PathParam("detalleId") Long detalleId,
+            Map<String, Object> datos
+    ) {
+        try {
+            if (datos == null || !datos.containsKey("cantidad")) {
+                return Response.status(Response.Status.BAD_REQUEST)
+                        .entity(createResponse(false, "Cantidad requerida", null))
+                        .build();
+            }
+
+            Integer nuevaCantidad = Integer.valueOf(datos.get("cantidad").toString());
+            if (nuevaCantidad <= 0) {
+                return Response.status(Response.Status.BAD_REQUEST)
+                        .entity(createResponse(false, "La cantidad debe ser mayor que cero", null))
+                        .build();
+            }
+
+            DetalleOrden actualizado = ordenService.actualizarCantidadDetalle(
+                    ordenId,
+                    detalleId,
+                    nuevaCantidad
+            );
+
+            return Response.ok(
+                    createResponse(true, "Detalle actualizado exitosamente", actualizado)
+            ).build();
+
+        } catch (Exception e) {
+            LOG.log(Level.SEVERE, "Error al actualizar cantidad del detalle", e);
+            return Response.status(Response.Status.INTERNAL_SERVER_ERROR)
+                    .entity(createResponse(false, "Error: " + e.getMessage(), null))
                     .build();
         }
+    }
 
-        Integer nuevaCantidad = Integer.valueOf(datos.get("cantidad").toString());
-        if (nuevaCantidad <= 0) {
-            return Response.status(Response.Status.BAD_REQUEST)
-                    .entity(createResponse(false, "La cantidad debe ser mayor que cero", null))
+    @POST
+    @Path("/{id}/facturar")
+    public Response facturar(@PathParam("id") Long id) {
+        try {
+            ordenService.marcarComoFacturada(id);
+            return Response.ok(
+                    createResponse(true, "Orden marcada como FACTURADA", null)
+            ).build();
+        } catch (Exception e) {
+            LOG.log(Level.SEVERE, "Error al marcar orden como facturada", e);
+            return Response.status(Response.Status.INTERNAL_SERVER_ERROR)
+                    .entity(createResponse(false, "Error: " + e.getMessage(), null))
                     .build();
         }
-
-        DetalleOrden actualizado = ordenService.actualizarCantidadDetalle(
-                ordenId,
-                detalleId,
-                nuevaCantidad
-        );
-
-        return Response.ok(
-                createResponse(true, "Detalle actualizado exitosamente", actualizado)
-        ).build();
-
-    } catch (Exception e) {
-        LOG.log(Level.SEVERE, "Error al actualizar cantidad del detalle", e);
-        return Response.status(Response.Status.INTERNAL_SERVER_ERROR)
-                .entity(createResponse(false, "Error: " + e.getMessage(), null))
-                .build();
     }
-}
 
-
-@POST
-@Path("/{id}/facturar")
-public Response facturar(@PathParam("id") Long id) {
-    try {
-        ordenService.marcarComoFacturada(id);
-        return Response.ok(
-                createResponse(true, "Orden marcada como FACTURADA", null)
-        ).build();
-    } catch (Exception e) {
-        LOG.log(Level.SEVERE, "Error al marcar orden como facturada", e);
-        return Response.status(Response.Status.INTERNAL_SERVER_ERROR)
-                .entity(createResponse(false, "Error: " + e.getMessage(), null))
-                .build();
-    }
-}
-    
-    
-    
     @DELETE
-    @Path("/detalles/{detalleId}")
-    public Response eliminarDetalle(@PathParam("detalleId") Long detalleId) {
+    @Path("/{ordenId}/detalles/{detalleId}")
+    public Response eliminarDetalle(
+            @PathParam("ordenId") Long ordenId,
+            @PathParam("detalleId") Long detalleId) {
         try {
             ordenService.eliminarDetalle(detalleId);
             return Response.ok(createResponse(true, "Detalle eliminado exitosamente", null)).build();
@@ -269,4 +266,5 @@ public Response facturar(@PathParam("id") Long id) {
         response.put("data", data);
         return response;
     }
+
 }
