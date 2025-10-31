@@ -6,7 +6,6 @@ cr\ac\una\wsrestuna\rest\ParametrosRest.class
 cr\ac\una\wsrestuna\rest\ProductoRest.class
 cr\ac\una\wsrestuna\model\DetalleOrden.class
 cr\ac\una\wsrestuna\service\CierreCajaService.class
-cr\ac\una\wsrestuna\OpenApiConfig.class
 cr\ac\una\wsrestuna\rest\CierreCajaRest.class
 cr\ac\una\wsrestuna\rest\RestConfig.class
 cr\ac\una\wsrestuna\service\OrdenService.class

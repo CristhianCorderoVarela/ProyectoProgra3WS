@@ -44,7 +44,7 @@ public class FacturaRest {
     public Response findById(@PathParam("id") Long id) {
         try {
             Optional<Factura> factura = facturaService.findById(id);
-            
+
             if (factura.isPresent()) {
                 return Response.ok(createResponse(true, "Factura encontrada", factura.get())).build();
             } else {
@@ -95,18 +95,18 @@ public class FacturaRest {
             Long ordenId = Long.valueOf(datos.get("ordenId").toString());
             Long usuarioId = Long.valueOf(datos.get("usuarioId").toString());
             Long clienteId = datos.get("clienteId") != null ? Long.valueOf(datos.get("clienteId").toString()) : null;
-            
+
             boolean aplicaImpVenta = Boolean.parseBoolean(datos.get("aplicaImpuestoVenta").toString());
             boolean aplicaImpServicio = Boolean.parseBoolean(datos.get("aplicaImpuestoServicio").toString());
-            
+
             BigDecimal descuento = new BigDecimal(datos.getOrDefault("descuento", "0").toString());
             BigDecimal montoEfectivo = new BigDecimal(datos.get("montoEfectivo").toString());
             BigDecimal montoTarjeta = new BigDecimal(datos.get("montoTarjeta").toString());
 
             Factura factura = facturaService.createFromOrden(
-                ordenId, clienteId, usuarioId,
-                aplicaImpVenta, aplicaImpServicio,
-                descuento, montoEfectivo, montoTarjeta
+                    ordenId, clienteId, usuarioId,
+                    aplicaImpVenta, aplicaImpServicio,
+                    descuento, montoEfectivo, montoTarjeta
             );
 
             return Response.status(Response.Status.CREATED)
@@ -126,22 +126,22 @@ public class FacturaRest {
         try {
             Long usuarioId = Long.valueOf(datos.get("usuarioId").toString());
             Long clienteId = datos.get("clienteId") != null ? Long.valueOf(datos.get("clienteId").toString()) : null;
-            
+
             // Los detalles vienen en el Map
             @SuppressWarnings("unchecked")
             List<DetalleFactura> detalles = (List<DetalleFactura>) datos.get("detalles");
-            
+
             boolean aplicaImpVenta = Boolean.parseBoolean(datos.get("aplicaImpuestoVenta").toString());
             boolean aplicaImpServicio = Boolean.parseBoolean(datos.get("aplicaImpuestoServicio").toString());
-            
+
             BigDecimal descuento = new BigDecimal(datos.getOrDefault("descuento", "0").toString());
             BigDecimal montoEfectivo = new BigDecimal(datos.get("montoEfectivo").toString());
             BigDecimal montoTarjeta = new BigDecimal(datos.get("montoTarjeta").toString());
 
             Factura factura = facturaService.createDirecta(
-                usuarioId, clienteId, detalles,
-                aplicaImpVenta, aplicaImpServicio,
-                descuento, montoEfectivo, montoTarjeta
+                    usuarioId, clienteId, detalles,
+                    aplicaImpVenta, aplicaImpServicio,
+                    descuento, montoEfectivo, montoTarjeta
             );
 
             return Response.status(Response.Status.CREATED)
@@ -176,87 +176,110 @@ public class FacturaRest {
         response.put("data", data);
         return response;
     }
-    
-    
+
     @POST
-public Response create(Map<String, Object> datos) {
-    try {
-        // ===== 1. IDs básicos =====
-        Long ordenId = Long.valueOf(datos.get("ordenId").toString());
+    public Response create(Map<String, Object> datos) {
+        try {
+            System.out.println("========== DEBUG FACTURA REST ==========");
+            System.out.println("Datos recibidos: " + datos);
 
-        Long clienteId = null;
-        if (datos.get("clienteId") != null) {
-            clienteId = Long.valueOf(datos.get("clienteId").toString());
+            // ===== 1. IDs básicos =====
+            Long ordenId = Long.valueOf(datos.get("ordenId").toString());
+            System.out.println("Orden ID: " + ordenId);
+
+            Long clienteId = null;
+            if (datos.get("clienteId") != null) {
+                clienteId = Long.valueOf(datos.get("clienteId").toString());
+            }
+
+            // ===== 2. Resumen (totales calculados en frontend) =====
+            @SuppressWarnings("unchecked")
+            Map<String, Object> resumen = (Map<String, Object>) datos.get("resumen");
+            System.out.println("Resumen recibido: " + resumen);
+
+            // Subtotal SIN impuestos
+            java.math.BigDecimal subtotal = new java.math.BigDecimal(
+                    resumen.get("subtotal").toString()
+            );
+            System.out.println("Subtotal: " + subtotal);
+
+            // Montos de impuestos YA calculados en frontend
+            java.math.BigDecimal impVentaMonto = new java.math.BigDecimal(
+                    resumen.getOrDefault("impuestoVentas", "0").toString()
+            );
+            java.math.BigDecimal impServicioMonto = new java.math.BigDecimal(
+                    resumen.getOrDefault("impuestoServicio", "0").toString()
+            );
+            System.out.println("Impuesto Venta: " + impVentaMonto);
+            System.out.println("Impuesto Servicio: " + impServicioMonto);
+
+            boolean aplicaImpVenta = impVentaMonto.compareTo(java.math.BigDecimal.ZERO) > 0;
+            boolean aplicaImpServicio = impServicioMonto.compareTo(java.math.BigDecimal.ZERO) > 0;
+
+            // **CRÍTICO: Descuento viene como MONTO ABSOLUTO del frontend**
+            java.math.BigDecimal descuentoMonto = new java.math.BigDecimal(
+                    resumen.getOrDefault("descuento", "0").toString()
+            );
+            System.out.println("Descuento MONTO recibido: " + descuentoMonto);
+
+            // **CÁLCULO CORRECTO: Base = SUBTOTAL + TODOS LOS IMPUESTOS**
+            java.math.BigDecimal baseParaDescuento = subtotal
+                    .add(impVentaMonto)
+                    .add(impServicioMonto);
+
+            System.out.println("Base para descuento (subtotal + impuestos): " + baseParaDescuento);
+
+            java.math.BigDecimal descuentoPct = java.math.BigDecimal.ZERO;
+
+            // Solo calcular porcentaje si hay descuento y base > 0
+            if (baseParaDescuento.compareTo(java.math.BigDecimal.ZERO) > 0
+                    && descuentoMonto.compareTo(java.math.BigDecimal.ZERO) > 0) {
+
+                // Fórmula correcta: descuentoPct = (descuentoMonto / base) * 100
+                descuentoPct = descuentoMonto
+                        .multiply(new java.math.BigDecimal("100"))
+                        .divide(baseParaDescuento, 4, java.math.RoundingMode.HALF_UP);
+
+                System.out.println("Descuento PORCENTAJE calculado: " + descuentoPct + "%");
+            }
+
+            // ===== 3. Pagos =====
+            @SuppressWarnings("unchecked")
+            Map<String, Object> pagos = (Map<String, Object>) datos.get("pagos");
+
+            java.math.BigDecimal montoEfectivo = new java.math.BigDecimal(
+                    pagos.getOrDefault("efectivo", "0").toString()
+            );
+            java.math.BigDecimal montoTarjeta = new java.math.BigDecimal(
+                    pagos.getOrDefault("tarjeta", "0").toString()
+            );
+
+            System.out.println("Efectivo: " + montoEfectivo);
+            System.out.println("Tarjeta: " + montoTarjeta);
+            System.out.println("========================================");
+
+            // ===== 4. Crear la factura =====
+            Factura factura = facturaService.createFromOrden(
+                    ordenId,
+                    clienteId,
+                    null, // usuarioId: se infiere de la orden
+                    aplicaImpVenta,
+                    aplicaImpServicio,
+                    descuentoPct, // Ahora enviamos el porcentaje CORRECTO
+                    montoEfectivo,
+                    montoTarjeta
+            );
+
+            return Response.status(Response.Status.CREATED)
+                    .entity(createResponse(true, "Factura creada exitosamente", factura))
+                    .build();
+
+        } catch (Exception e) {
+            LOG.log(Level.SEVERE, "Error al crear factura desde payload /facturas", e);
+            return Response.status(Response.Status.INTERNAL_SERVER_ERROR)
+                    .entity(createResponse(false, "Error: " + e.getMessage(), null))
+                    .build();
         }
-
-        // ===== 2. Resumen (totales calculados en frontend) =====
-        @SuppressWarnings("unchecked")
-        Map<String, Object> resumen = (Map<String, Object>) datos.get("resumen");
-
-        // subtotal
-        java.math.BigDecimal subtotal = new java.math.BigDecimal(
-                resumen.get("subtotal").toString()
-        );
-
-        // montos de impuestos
-        java.math.BigDecimal impVentaMonto = new java.math.BigDecimal(
-                resumen.getOrDefault("impuestoVentas", "0").toString()
-        );
-        java.math.BigDecimal impServicioMonto = new java.math.BigDecimal(
-                resumen.getOrDefault("impuestoServicio", "0").toString()
-        );
-
-        boolean aplicaImpVenta = impVentaMonto.compareTo(java.math.BigDecimal.ZERO) > 0;
-        boolean aplicaImpServicio = impServicioMonto.compareTo(java.math.BigDecimal.ZERO) > 0;
-
-        // descuento EN MONTO que viene del front
-        java.math.BigDecimal descuentoMonto = new java.math.BigDecimal(
-                resumen.getOrDefault("descuento", "0").toString()
-        );
-
-        // convertir a PORCENTAJE porque el servicio espera porcentaje
-        java.math.BigDecimal descuentoPct = java.math.BigDecimal.ZERO;
-        if (subtotal.compareTo(java.math.BigDecimal.ZERO) > 0
-                && descuentoMonto.compareTo(java.math.BigDecimal.ZERO) > 0) {
-            descuentoPct = descuentoMonto
-                    .multiply(new java.math.BigDecimal("100"))
-                    .divide(subtotal, 2, java.math.RoundingMode.HALF_UP);
-        }
-
-        // ===== 3. Pagos =====
-        @SuppressWarnings("unchecked")
-        Map<String, Object> pagos = (Map<String, Object>) datos.get("pagos");
-
-        java.math.BigDecimal montoEfectivo = new java.math.BigDecimal(
-                pagos.getOrDefault("efectivo", "0").toString()
-        );
-        java.math.BigDecimal montoTarjeta = new java.math.BigDecimal(
-                pagos.getOrDefault("tarjeta", "0").toString()
-        );
-
-        // ===== 4. Crear la factura =====
-        // Nota: usuarioId lo mandamos null aquí; el service se encargará
-        // de inferirlo desde la Orden.
-        Factura factura = facturaService.createFromOrden(
-                ordenId,
-                clienteId,
-                null, // usuarioId: se resuelve internamente usando la orden
-                aplicaImpVenta,
-                aplicaImpServicio,
-                descuentoPct,
-                montoEfectivo,
-                montoTarjeta
-        );
-
-        return Response.status(Response.Status.CREATED)
-                .entity(createResponse(true, "Factura creada exitosamente", factura))
-                .build();
-
-    } catch (Exception e) {
-        LOG.log(Level.SEVERE, "Error al crear factura desde payload /facturas", e);
-        return Response.status(Response.Status.INTERNAL_SERVER_ERROR)
-                .entity(createResponse(false, "Error: " + e.getMessage(), null))
-                .build();
     }
-}
+    
 }
