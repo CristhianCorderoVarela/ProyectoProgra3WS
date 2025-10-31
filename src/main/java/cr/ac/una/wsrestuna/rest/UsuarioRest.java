@@ -185,46 +185,36 @@ public class UsuarioRest {
      * Autentica un usuario
      */
     @POST
-@Path("/login")
-public Response login(Map<String, String> credentials) {
-    try {
-        String usuario = credentials.get("usuario");
-        String clave = credentials.get("clave");
+    @Path("/login")
+    public Response login(Map<String, String> credentials) {
+        try {
+            String usuario = credentials.get("usuario");
+            String clave = credentials.get("clave");
 
-        if (usuario == null || clave == null) {
-            return Response.status(Response.Status.BAD_REQUEST)
-                    .entity(createResponse(false, "Usuario y contraseña requeridos", null))
+            if (usuario == null || clave == null) {
+                return Response.status(Response.Status.BAD_REQUEST)
+                        .entity(createResponse(false, "Usuario y contraseña requeridos", null))
+                        .build();
+            }
+
+            Optional<Usuario> usuarioAuth = usuarioService.authenticate(usuario, clave);
+
+            if (usuarioAuth.isPresent()) {
+                Usuario u = usuarioAuth.get();
+                u.setClave(null);
+                return Response.ok(createResponse(true, "Autenticación exitosa", u)).build();
+            } else {
+                return Response.status(Response.Status.UNAUTHORIZED)
+                        .entity(createResponse(false, "Credenciales inválidas", null))
+                        .build();
+            }
+        } catch (Exception e) {
+            LOG.log(Level.SEVERE, "Error en autenticación", e);
+            return Response.status(Response.Status.INTERNAL_SERVER_ERROR)
+                    .entity(createResponse(false, "Error: " + e.getMessage(), null))
                     .build();
         }
-
-        Optional<Usuario> usuarioAuth = usuarioService.authenticate(usuario, clave);
-
-        if (usuarioAuth.isPresent()) {
-            Usuario u = usuarioAuth.get();
-            u.setClave(null);
-
-            // ---- DTO que evita LocalDate ----
-            Map<String, Object> dto = new HashMap<>();
-            dto.put("id", u.getId());
-            dto.put("nombre", u.getNombre());
-            dto.put("usuario", u.getUsuario());
-            dto.put("rol", u.getRol());
-            dto.put("fechaCreacion", u.getFechaCreacion() != null ? u.getFechaCreacion().toString() : null);
-            // agrega solo lo que necesites mandar al cliente
-
-            return Response.ok(createResponse(true, "Autenticación exitosa", dto)).build();
-        } else {
-            return Response.status(Response.Status.UNAUTHORIZED)
-                    .entity(createResponse(false, "Credenciales inválidas", null))
-                    .build();
-        }
-    } catch (Exception e) {
-        LOG.log(Level.SEVERE, "Error en autenticación", e);
-        return Response.status(Response.Status.INTERNAL_SERVER_ERROR)
-                .entity(createResponse(false, "Error: " + e.getMessage(), null))
-                .build();
     }
-}
 
     /**
      * POST /api/usuarios/{id}/cambiar-clave
