@@ -2,6 +2,7 @@ package cr.ac.una.wsrestuna.rest;
 
 import cr.ac.una.wsrestuna.model.Mesa;
 import cr.ac.una.wsrestuna.model.Salon;
+import cr.ac.una.wsrestuna.service.OrdenService;
 import cr.ac.una.wsrestuna.service.SalonService;
 import jakarta.ejb.EJB;
 import jakarta.ws.rs.*;
@@ -20,6 +21,8 @@ public class SalonRest {
 
     @EJB
     private SalonService salonService;
+    @EJB
+    private OrdenService ordenService;
 
     // ==================== ENDPOINTS DE SALONES ====================
 
@@ -169,21 +172,40 @@ public class SalonRest {
             }
 
             List<Mesa> mesas = salonService.findMesasBySalon(salonId);
-            
+
+            // ⭐ SINCRONIZAR ESTADO CON ÓRDENES ACTIVAS
             List<Map<String, Object>> mesasDTO = new ArrayList<>();
             for (Mesa mesa : mesas) {
+                // Verificar si realmente tiene orden activa
+                boolean tieneOrdenActiva = ordenService.mesaTieneOrdenActiva(mesa.getId());
+
+                // Actualizar estado si es necesario
+                String estadoReal = tieneOrdenActiva ? "OCUPADA" : "LIBRE";
+
+                // ⚠️ IMPORTANTE: Si el estado en BD no coincide, actualizarlo
+                if (!estadoReal.equals(mesa.getEstado())) {
+                    LOG.log(Level.WARNING,
+                            "⚠️ Mesa {0} desincronizada. BD={1}, Real={2}. Corrigiendo...",
+                            new Object[]{mesa.getIdentificador(), mesa.getEstado(), estadoReal});
+
+                    mesa.setEstado(estadoReal);
+                    salonService.updateMesa(mesa); // Actualizar en BD
+                }
+
                 Map<String, Object> dto = new HashMap<>();
                 dto.put("id", mesa.getId());
                 dto.put("salonId", mesa.getSalonId());
                 dto.put("identificador", mesa.getIdentificador());
                 dto.put("posicionX", mesa.getPosicionX());
                 dto.put("posicionY", mesa.getPosicionY());
-                dto.put("estado", mesa.getEstado());
+                dto.put("estado", estadoReal); // ⭐ Estado sincronizado
                 dto.put("version", mesa.getVersion());
+
                 mesasDTO.add(dto);
             }
-            
+
             return Response.ok(createResponse(true, "Mesas obtenidas", mesasDTO)).build();
+
         } catch (Exception e) {
             LOG.log(Level.SEVERE, "Error al obtener mesas", e);
             return Response.status(Response.Status.INTERNAL_SERVER_ERROR)
@@ -203,8 +225,8 @@ public class SalonRest {
                         .build();
             }
 
-            if (!mesaData.containsKey("identificador") || 
-                mesaData.get("identificador").toString().trim().isEmpty()) {
+            if (!mesaData.containsKey("identificador")
+                    || mesaData.get("identificador").toString().trim().isEmpty()) {
                 return Response.status(Response.Status.BAD_REQUEST)
                         .entity(createResponse(false, "El identificador es obligatorio", null))
                         .build();
@@ -213,14 +235,14 @@ public class SalonRest {
             Mesa mesa = new Mesa();
             mesa.setSalon(salon.get());
             mesa.setIdentificador(mesaData.get("identificador").toString().trim());
-            mesa.setPosicionX(mesaData.containsKey("posicionX") ? 
-                Double.parseDouble(mesaData.get("posicionX").toString()) : 0.0);
-            mesa.setPosicionY(mesaData.containsKey("posicionY") ? 
-                Double.parseDouble(mesaData.get("posicionY").toString()) : 0.0);
+            mesa.setPosicionX(mesaData.containsKey("posicionX")
+                    ? Double.parseDouble(mesaData.get("posicionX").toString()) : 0.0);
+            mesa.setPosicionY(mesaData.containsKey("posicionY")
+                    ? Double.parseDouble(mesaData.get("posicionY").toString()) : 0.0);
             mesa.setEstado("LIBRE");
 
             Mesa created = salonService.createMesa(mesa);
-            
+
             Map<String, Object> dto = new HashMap<>();
             dto.put("id", created.getId());
             dto.put("salonId", created.getSalonId());
@@ -229,7 +251,7 @@ public class SalonRest {
             dto.put("posicionY", created.getPosicionY());
             dto.put("estado", created.getEstado());
             dto.put("version", created.getVersion());
-            
+
             return Response.status(Response.Status.CREATED)
                     .entity(createResponse(true, "Mesa creada exitosamente", dto))
                     .build();

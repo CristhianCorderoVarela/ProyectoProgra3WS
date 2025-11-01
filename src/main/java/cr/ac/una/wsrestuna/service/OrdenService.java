@@ -161,6 +161,26 @@ public class OrdenService {
 
             LOG.log(Level.INFO, "Ejecutando flush()...");
             em.flush();
+            
+            // ---- PERSISTIR ORDEN ----
+            LOG.log(Level.INFO, "Persistiendo orden en la base de datos...");
+            em.persist(orden);
+
+            LOG.log(Level.INFO, "Ejecutando flush()...");
+            em.flush();
+
+// ⭐ OCUPAR MESA SI EXISTE
+            if (orden.getMesa() != null && orden.getMesa().getId() != null) {
+                try {
+                    salonService.ocuparMesa(orden.getMesa().getId());
+                    LOG.log(Level.INFO, "✅ Mesa {0} marcada como OCUPADA",
+                            orden.getMesa().getIdentificador());
+                } catch (Exception e) {
+                    LOG.log(Level.WARNING, "⚠️ No se pudo ocupar mesa: {0}", e.getMessage());
+                }
+            }
+
+            LOG.log(Level.INFO, "✅ Orden creada exitosamente con ID: {0}", orden.getId());
 
             LOG.log(Level.INFO, "✅ Orden creada exitosamente con ID: {0}", orden.getId());
             LOG.log(Level.INFO, "====== FIN CREACIÓN DE ORDEN ======");
@@ -555,10 +575,8 @@ public DetalleOrden actualizarCantidadDetalle(Long ordenId, Long detalleId, Inte
         }
     }
     
-
     /**
-     * Marca una orden como facturada
-     * NO libera la mesa, eso lo hace FacturaService
+     * Marca una orden como facturada Y libera la mesa
      */
     public void marcarComoFacturada(Long ordenId) {
         try {
@@ -567,6 +585,18 @@ public DetalleOrden actualizarCantidadDetalle(Long ordenId, Long detalleId, Inte
                 orden.setEstado("FACTURADA");
                 em.merge(orden);
                 em.flush();
+
+                // ⭐ LIBERAR MESA
+                if (orden.getMesa() != null && orden.getMesa().getId() != null) {
+                    try {
+                        salonService.liberarMesa(orden.getMesa().getId());
+                        LOG.log(Level.INFO, "✅ Mesa {0} liberada al facturar orden {1}",
+                                new Object[]{orden.getMesa().getIdentificador(), ordenId});
+                    } catch (Exception e) {
+                        LOG.log(Level.WARNING, "⚠️ No se pudo liberar mesa: {0}", e.getMessage());
+                    }
+                }
+
                 LOG.log(Level.INFO, "Orden marcada como facturada: {0}", ordenId);
             }
         } catch (Exception e) {
@@ -574,4 +604,39 @@ public DetalleOrden actualizarCantidadDetalle(Long ordenId, Long detalleId, Inte
             throw new RuntimeException("Error: " + e.getMessage());
         }
     }
+    
+    /**
+     * Verifica si una mesa tiene una orden activa (ABIERTA)
+     *
+     * @param mesaId ID de la mesa
+     * @return true si hay orden activa, false si no
+     */
+    public boolean mesaTieneOrdenActiva(Long mesaId) {
+        if (mesaId == null) {
+            return false;
+        }
+
+        try {
+            TypedQuery<Long> query = em.createQuery(
+                    "SELECT COUNT(o) FROM Orden o "
+                    + "WHERE o.mesa.id = :mesaId AND o.estado = 'ABIERTA'",
+                    Long.class
+            );
+            query.setParameter("mesaId", mesaId);
+
+            Long count = query.getSingleResult();
+            boolean tieneOrden = (count != null && count > 0);
+
+            LOG.log(Level.INFO, "Mesa {0} tiene orden activa: {1}",
+                    new Object[]{mesaId, tieneOrden});
+
+            return tieneOrden;
+
+        } catch (Exception e) {
+            LOG.log(Level.SEVERE, "Error al verificar orden activa para mesa " + mesaId, e);
+            return false;
+        }
+    }
+    
+    
 }
