@@ -1,5 +1,6 @@
 package cr.ac.una.wsrestuna.rest;
 
+import cr.ac.una.wsrestuna.model.GrupoProducto;
 import cr.ac.una.wsrestuna.model.Producto;
 import cr.ac.una.wsrestuna.service.ProductoService;
 import jakarta.ejb.EJB;
@@ -154,25 +155,27 @@ public Response findActivos() {
 }
 
     @POST
-    public Response create(Producto producto) {
-        try {
-            if (producto == null || producto.getNombre() == null || producto.getPrecio() == null) {
-                return Response.status(Response.Status.BAD_REQUEST)
-                        .entity(createResponse(false, "Datos incompletos", null))
-                        .build();
-            }
-
-            Producto created = productoService.create(producto);
-            return Response.status(Response.Status.CREATED)
-                    .entity(createResponse(true, "Producto creado exitosamente", created))
-                    .build();
-        } catch (Exception e) {
-            LOG.log(Level.SEVERE, "Error al crear producto", e);
-            return Response.status(Response.Status.INTERNAL_SERVER_ERROR)
-                    .entity(createResponse(false, "Error: " + e.getMessage(), null))
-                    .build();
+public Response create(Producto producto) {
+    try {
+        // Resolver Grupo desde grupoId porque 'grupo' está @JsonbTransient
+        if (producto.getGrupo() == null && producto.getGrupoId() != null) {
+            producto.setGrupo(new GrupoProducto(producto.getGrupoId())); // o em.getReference(...)
         }
+        if (producto.getGrupo() == null || producto.getGrupo().getId() == null) {
+            return Response.status(Response.Status.BAD_REQUEST)
+                   .entity(Map.of("success", false, "message", "Debe indicar grupoId válido."))
+                   .build();
+        }
+        Producto creado = productoService.create(producto);
+        return Response.status(Response.Status.CREATED)
+               .entity(Map.of("success", true, "message", "Producto creado correctamente", "data", creado))
+               .build();
+    } catch (Exception e) {
+        return Response.status(Response.Status.INTERNAL_SERVER_ERROR)
+               .entity(Map.of("success", false, "message", "Error: " + e.getMessage()))
+               .build();
     }
+}
 
     @PUT
     @Path("/{id}")
