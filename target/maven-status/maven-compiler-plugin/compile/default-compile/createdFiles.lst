@@ -17,6 +17,7 @@ cr\ac\una\wsrestuna\model\GrupoProducto.class
 cr\ac\una\wsrestuna\model\Factura.class
 cr\ac\una\wsrestuna\rest\FacturaRest.class
 cr\ac\una\wsrestuna\service\ReportesService.class
+cr\ac\una\wsrestuna\service\GrupoProductoService$ProductoVM.class
 cr\ac\una\wsrestuna\service\ClienteService.class
 cr\ac\una\wsrestuna\model\Producto.class
 cr\ac\una\wsrestuna\rest\ClienteRest.class
@@ -24,6 +25,7 @@ cr\ac\una\wsrestuna\service\ParametrosService.class
 cr\ac\una\wsrestuna\service\ReportesPdfService.class
 cr\ac\una\wsrestuna\service\ProductoService.class
 cr\ac\una\wsrestuna\resources\ReportesResource.class
+cr\ac\una\wsrestuna\service\GrupoProductoService$GrupoVM.class
 cr\ac\una\wsrestuna\service\UsuarioService.class
 cr\ac\una\wsrestuna\rest\SalonRest.class
 cr\ac\una\wsrestuna\service\FacturaService.class

@@ -150,4 +150,21 @@ public class GrupoProductoRest {
         response.put("data", data);
         return response;
     }
+    
+    @GET
+@Path("/ventas")
+public Response gruposOrdenadosPorVentas() {
+    try {
+        List<GrupoProductoService.GrupoVM> data = grupoService.obtenerGruposConProductosOrdenadosPorVentas();
+        return Response.ok(Map.of(
+            "success", true,
+            "message", "Grupos ordenados por ventas obtenidos",
+            "data", data
+        )).build();
+    } catch (Exception e) {
+        return Response.status(Response.Status.INTERNAL_SERVER_ERROR)
+            .entity(Map.of("success", false, "message", "Error: " + e.getMessage()))
+            .build();
+    }
+}
 }

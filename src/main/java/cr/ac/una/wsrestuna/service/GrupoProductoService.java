@@ -1,12 +1,16 @@
 package cr.ac.una.wsrestuna.service;
 
 import cr.ac.una.wsrestuna.model.GrupoProducto;
+import cr.ac.una.wsrestuna.model.Producto;
 import jakarta.ejb.LocalBean;
 import jakarta.ejb.Stateless;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import jakarta.persistence.TypedQuery;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -111,4 +115,66 @@ public class GrupoProductoService {
             LOG.log(Level.SEVERE, "Error al incrementar ventas del grupo", e);
         }
     }
+    
+    
+    // ===================== NUEVO MÉTODO =====================
+
+public static class ProductoVM {
+    public Long id;
+    public String nombre;
+    public java.math.BigDecimal precio;
+    public Long totalVentas;
+
+    public ProductoVM(Long id, String n, java.math.BigDecimal pr, Long tv) {
+        this.id = id;
+        this.nombre = n;
+        this.precio = pr;
+        this.totalVentas = (tv == null ? 0L : tv);
+    }
+}
+
+public static class GrupoVM {
+    public Long id;
+    public String nombre;
+    public Long totalVentasGrupo;
+    public java.util.List<ProductoVM> productos = new java.util.ArrayList<>();
+
+    public GrupoVM(Long id, String nombre) {
+        this.id = id;
+        this.nombre = nombre;
+        this.totalVentasGrupo = 0L;
+    }
+}
+
+public List<GrupoVM> obtenerGruposConProductosOrdenadosPorVentas() {
+    // JOIN por la relación mapeada
+    List<Object[]> rows = em.createQuery(
+        "SELECT g.id, g.nombre, p " +
+        "FROM Producto p JOIN p.grupo g " +
+        "WHERE g.estado = 'A' AND p.estado = 'A'",
+        Object[].class
+    ).getResultList();
+
+    Map<Long, GrupoVM> porGrupo = new LinkedHashMap<>();
+    for (Object[] r : rows) {
+        Long gid = (Long) r[0];
+        String gnom = (String) r[1];
+        Producto p = (Producto) r[2];
+
+        GrupoVM gvm = porGrupo.computeIfAbsent(gid, k -> new GrupoVM(gid, gnom));
+        long tv = p.getTotalVentas() == null ? 0L : p.getTotalVentas();
+        gvm.productos.add(new ProductoVM(p.getId(), p.getNombre(), p.getPrecio(), tv));
+    }
+    
+    
+
+    List<GrupoVM> salida = new ArrayList<>(porGrupo.values());
+    for (GrupoVM g : salida) {
+        g.productos.sort((a,b) -> Long.compare(b.totalVentas, a.totalVentas));
+        long suma = 0L; for (ProductoVM p : g.productos) suma += p.totalVentas;
+        g.totalVentasGrupo = suma;
+    }
+    salida.sort((a,b) -> Long.compare(b.totalVentasGrupo, a.totalVentasGrupo));
+    return salida;
+}
 }

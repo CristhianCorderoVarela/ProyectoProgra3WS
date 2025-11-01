@@ -25,6 +25,11 @@ import java.math.BigDecimal;
 public class Producto implements Serializable {
 
     private static final long serialVersionUID = 1L;
+    
+    
+    
+    
+    
 
     @Id
     @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "producto_seq")
@@ -47,6 +52,10 @@ public class Producto implements Serializable {
     @Column(name = "nombre_corto", nullable = false, length = 50)
     private String nombreCorto;
 
+    
+    
+    
+    
     @NotNull
     @DecimalMin(value = "0.0", inclusive = true)
     @Column(name = "precio", nullable = false, precision = 10, scale = 2)
