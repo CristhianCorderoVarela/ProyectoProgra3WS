@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<jasperReport xmlns="http://jasperreports.sourceforge.net/jasperreports"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:schemaLocation="http://jasperreports.sourceforge.net/jasperreports http://jasperreports.sourceforge.net/xsd/jasperreport.xsd"
+  name="CierreCaja" pageWidth="595" pageHeight="842" columnWidth="515"
+  leftMargin="40" rightMargin="40" topMargin="40" bottomMargin="40" uuid="33333333-3333-3333-3333-333333333333">
+
+  <parameter name="P_TITULO" class="java.lang.String"/>
+  <parameter name="P_FECHA" class="java.lang.String"/>
+  <parameter name="P_CAJERO" class="java.lang.String"/>
+
+  <field name="id" class="java.lang.Object"/>
+  <field name="estado" class="java.lang.Object"/>
+  <field name="fechaApertura" class="java.lang.Object"/>
+  <field name="fechaCierre" class="java.lang.Object"/>
+  <field name="usuario" class="java.lang.Object"/>
+  <field name="usuarioLogin" class="java.lang.Object"/>
+  <field name="efectivoSistema" class="java.lang.Object"/>
+  <field name="tarjetaSistema" class="java.lang.Object"/>
+  <field name="difEfectivo" class="java.lang.Object"/>
+  <field name="difTarjeta" class="java.lang.Object"/>
+
+  <title>
+    <band height="60">
+      <textField>
+        <reportElement x="0" y="0" width="515" height="20"/>
+        <textElement textAlignment="Center"><font size="14" isBold="true"/></textElement>
+        <textFieldExpression><![CDATA[$P{P_TITULO}]]></textFieldExpression>
+      </textField>
+      <textField>
+        <reportElement x="0" y="25" width="515" height="18"/>
+        <textElement textAlignment="Center"/>
+        <textFieldExpression><![CDATA["Fecha: " + $P{P_FECHA} + "   Cajero: " + $P{P_CAJERO}]]></textFieldExpression>
+      </textField>
+    </band>
+  </title>
+
+  <columnHeader>
+    <band height="20">
+      <staticText><reportElement x="0"   y="0" width="35"  height="20"/><text><![CDATA[ID]]></text></staticText>
+      <staticText><reportElement x="37"  y="0" width="40"  height="20"/><text><![CDATA[Est]]></text></staticText>
+      <staticText><reportElement x="79"  y="0" width="120" height="20"/><text><![CDATA[Apertura]]></text></staticText>
+      <staticText><reportElement x="201" y="0" width="120" height="20"/><text><![CDATA[Cierre]]></text></staticText>
+      <staticText><reportElement x="323" y="0" width="90"  height="20"/><text><![CDATA[Efectivo]]></text></staticText>
+      <staticText><reportElement x="415" y="0" width="100" height="20"/><text><![CDATA[Tarjeta]]></text></staticText>
+    </band>
+  </columnHeader>
+
+  <detail>
+    <band height="18">
+      <textField><reportElement x="0"   y="0" width="35"  height="18"/><textFieldExpression><![CDATA[$F{id}]]></textFieldExpression></textField>
+      <textField><reportElement x="37"  y="0" width="40"  height="18"/><textFieldExpression><![CDATA[$F{estado}]]></textFieldExpression></textField>
+      <textField><reportElement x="79"  y="0" width="120" height="18"/><textFieldExpression><![CDATA[String.valueOf($F{fechaApertura})]]></textFieldExpression></textField>
+      <textField><reportElement x="201" y="0" width="120" height="18"/><textFieldExpression><![CDATA[String.valueOf($F{fechaCierre})]]></textFieldExpression></textField>
+      <textField><reportElement x="323" y="0" width="90"  height="18"/><textFieldExpression><![CDATA[$F{efectivoSistema}]]></textFieldExpression></textField>
+      <textField><reportElement x="415" y="0" width="100" height="18"/><textFieldExpression><![CDATA[$F{tarjetaSistema}]]></textFieldExpression></textField>
+    </band>
+  </detail>
+</jasperReport>
