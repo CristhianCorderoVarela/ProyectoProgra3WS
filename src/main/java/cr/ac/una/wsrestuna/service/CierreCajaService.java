@@ -194,38 +194,30 @@ public class CierreCajaService {
         }
     }
     
-    /** Totales desde la fecha de apertura de la caja abierta del usuario, con cierre_caja_id IS NULL */
     public TotalesCaja totalesCajaAbierta(Long usuarioId) {
-        try {
-            // Obtener la caja abierta
-            var opt = findAbiertoByUsuario(usuarioId);
-            if (opt.isEmpty()) return new TotalesCaja(BigDecimal.ZERO, BigDecimal.ZERO, 0L, null);
+    try {
+        var opt = findAbiertoByUsuario(usuarioId);
+        if (opt.isEmpty()) return new TotalesCaja(BigDecimal.ZERO, BigDecimal.ZERO, 0L, null);
 
-            CierreCaja cc = opt.get();
+        CierreCaja cc = opt.get();
 
-            // JPQL directo sin NamedQuery adicional:
-            Object[] row = (Object[]) em.createQuery(
-                "SELECT COALESCE(SUM(f.montoEfectivo),0), " +
-                "       COALESCE(SUM(f.montoTarjeta),0), " +
-                "       COUNT(f.id) " +
-                "FROM Factura f " +
-                "WHERE f.usuario.id = :uid " +
-                "  AND f.fechaHora >= :desde " +
-                "  AND f.cierreCaja IS NULL " +   // aún no asignadas a un cierre
-                "  AND f.estado = 'A'")
-                .setParameter("uid", usuarioId)
-                .setParameter("desde", cc.getFechaApertura())
-                .getSingleResult();
+        Object[] row = (Object[]) em.createQuery(
+            "SELECT COALESCE(SUM(f.montoEfectivo),0), " +
+            "       COALESCE(SUM(f.montoTarjeta),0), " +
+            "       COUNT(f.id) " +
+            "FROM Factura f " +
+            "WHERE f.usuario.id = :uid " +
+            "  AND f.cierreCaja.id = :cid " +        // <-- clave del cambio
+            "  AND f.estado = 'A'")
+            .setParameter("uid", usuarioId)
+            .setParameter("cid", cc.getId())
+            .getSingleResult();
 
-            BigDecimal ef = (BigDecimal) row[0];
-            BigDecimal tj = (BigDecimal) row[1];
-            Long count = (Long) row[2];
-
-            return new TotalesCaja(ef, tj, count, cc.getId());
-        } catch (Exception e) {
-            return new TotalesCaja(BigDecimal.ZERO, BigDecimal.ZERO, 0L, null);
-        }
+        return new TotalesCaja((BigDecimal) row[0], (BigDecimal) row[1], (Long) row[2], cc.getId());
+    } catch (Exception e) {
+        return new TotalesCaja(BigDecimal.ZERO, BigDecimal.ZERO, 0L, null);
     }
+}
 
     public static class TotalesCaja {
         public final BigDecimal efectivo;
