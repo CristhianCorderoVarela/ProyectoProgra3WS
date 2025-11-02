@@ -40,40 +40,34 @@ public class OrdenService {
     private ProductoService productoService;
 
     /**
-     * Crea una nueva orden
-     * Si tiene mesa asociada, la marca como ocupada
+     * Crea una nueva orden Si tiene mesa asociada, la marca como ocupada
      */
     public Orden create(Orden orden) {
         try {
             LOG.log(Level.INFO, "====== INICIANDO CREACIÓN DE ORDEN ======");
 
-            // ---- VALIDAR USUARIO (OBLIGATORIO) ----
+            // ---- VALIDAR USUARIO ----
             if (orden.getUsuario() == null && orden.getUsuarioId() == null) {
-                throw new IllegalArgumentException("Usuario es obligatorio para crear una orden");
+                throw new IllegalArgumentException("Usuario es obligatorio");
             }
 
             if (orden.getUsuario() == null) {
-                LOG.log(Level.INFO, "Cargando usuario con ID: {0}", orden.getUsuarioId());
                 Usuario usuario = em.find(Usuario.class, orden.getUsuarioId());
                 if (usuario == null) {
                     throw new IllegalArgumentException("Usuario no encontrado: " + orden.getUsuarioId());
                 }
                 orden.setUsuario(usuario);
-                LOG.log(Level.INFO, "✅ Usuario cargado: {0}", usuario.getNombre());
             }
 
-            // ---- VALIDAR MESA (OPCIONAL) ----
+            // ---- VALIDAR MESA (opcional) ----
             if (orden.getMesa() == null && orden.getMesaId() != null) {
-                LOG.log(Level.INFO, "Cargando mesa con ID: {0}", orden.getMesaId());
                 Mesa mesa = em.find(Mesa.class, orden.getMesaId());
-                if (mesa == null) {
-                    throw new IllegalArgumentException("Mesa no encontrada: " + orden.getMesaId());
+                if (mesa != null) {
+                    orden.setMesa(mesa);
                 }
-                orden.setMesa(mesa);
-                LOG.log(Level.INFO, "✅ Mesa cargada: {0}", mesa.getIdentificador());
             }
 
-            // ---- CAMPOS POR DEFECTO ----
+            // ---- DEFAULTS ----
             if (orden.getFechaHora() == null) {
                 orden.setFechaHora(LocalDateTime.now());
             }
@@ -81,117 +75,71 @@ public class OrdenService {
                 orden.setEstado("ABIERTA");
             }
 
-            // ---- VALIDAR Y PROCESAR DETALLES ----
-            if (orden.getDetalles() == null || orden.getDetalles().isEmpty()) {
-                throw new IllegalArgumentException("La orden debe tener al menos un producto");
+            // ⭐ CAMBIO: Permitir orden vacía solo si está ABIERTA (venta directa)
+            boolean esOrdenVacia = (orden.getDetalles() == null || orden.getDetalles().isEmpty());
+
+            if (esOrdenVacia && !"ABIERTA".equals(orden.getEstado())) {
+                throw new IllegalArgumentException(
+                        "Las órdenes finalizadas deben tener al menos un producto"
+                );
             }
 
-            LOG.log(Level.INFO, "Procesando {0} detalles de orden", orden.getDetalles().size());
+            if (esOrdenVacia) {
+                LOG.log(Level.INFO, "⚠ Creando orden vacía (modo ABIERTA para venta directa)");
+                // Inicializar lista vacía
+                orden.setDetalles(new ArrayList<>());
+            } else {
+                // Procesar detalles normalmente
+                LOG.log(Level.INFO, "Procesando {0} detalles", orden.getDetalles().size());
 
-            int detalleNum = 0;
-            for (DetalleOrden detalle : orden.getDetalles()) {
-                detalleNum++;
-                LOG.log(Level.INFO, "--- Procesando detalle #{0} ---", detalleNum);
+                for (DetalleOrden detalle : orden.getDetalles()) {
+                    detalle.setOrden(orden);
 
-                // Establecer relación bidireccional
-                detalle.setOrden(orden);
+                    if (detalle.getProducto() == null) {
+                        Long productoId = detalle.getProductoId();
+                        if (productoId == null) {
+                            throw new IllegalArgumentException("Detalle sin producto");
+                        }
 
-                // ⭐ CRÍTICO: Cargar el producto si solo viene el ID
-                if (detalle.getProducto() == null) {
-                    Long productoId = detalle.getProductoId();
-
-                    if (productoId == null) {
-                        LOG.log(Level.SEVERE, "❌ Detalle #{0} sin producto ni productoId", detalleNum);
-                        throw new IllegalArgumentException(
-                                "Detalle #" + detalleNum + " no tiene producto asociado"
-                        );
+                        Producto producto = em.find(Producto.class, productoId);
+                        if (producto == null) {
+                            throw new IllegalArgumentException("Producto no encontrado: " + productoId);
+                        }
+                        detalle.setProducto(producto);
                     }
 
-                    LOG.log(Level.INFO, "Cargando producto con ID: {0}", productoId);
-                    Producto producto = em.find(Producto.class, productoId);
-
-                    if (producto == null) {
-                        LOG.log(Level.SEVERE, "❌ Producto no encontrado: {0}", productoId);
-                        throw new IllegalArgumentException(
-                                "Producto no encontrado: " + productoId
-                        );
+                    if (detalle.getCantidad() == null || detalle.getCantidad() <= 0) {
+                        throw new IllegalArgumentException("Cantidad inválida");
                     }
 
-                    detalle.setProducto(producto);
-                    LOG.log(Level.INFO, "✅ Producto cargado: {0}", producto.getNombre());
-                }
+                    if (detalle.getPrecioUnitario() == null) {
+                        detalle.setPrecioUnitario(detalle.getProducto().getPrecio());
+                    }
 
-                // Validar cantidad
-                if (detalle.getCantidad() == null || detalle.getCantidad() <= 0) {
-                    throw new IllegalArgumentException(
-                            "Cantidad inválida para producto: " + detalle.getProducto().getNombre()
-                    );
-                }
-
-                // Asegurar que el precio unitario esté establecido
-                if (detalle.getPrecioUnitario() == null) {
-                    detalle.setPrecioUnitario(detalle.getProducto().getPrecio());
-                    LOG.log(Level.INFO, "Precio unitario establecido desde producto: {0}",
-                            detalle.getPrecioUnitario());
-                }
-
-                // Calcular subtotal
-                detalle.calcularSubtotal();
-
-                LOG.log(Level.INFO,
-                        "✅ Detalle #{0} procesado: Producto={1}, Cantidad={2}, PrecioUnit={3}, Subtotal={4}",
-                        new Object[]{
-                            detalleNum,
-                            detalle.getProducto().getNombre(),
-                            detalle.getCantidad(),
-                            detalle.getPrecioUnitario(),
-                            detalle.getSubtotal()
-                        });
-
-                // ⭐ VERIFICACIÓN FINAL ANTES DE PERSISTIR
-                if (detalle.getProducto() == null) {
-                    LOG.log(Level.SEVERE, "❌ ERROR CRÍTICO: Producto es NULL después de procesamiento");
-                    throw new IllegalStateException("Error interno: producto es null en detalle #" + detalleNum);
+                    detalle.calcularSubtotal();
                 }
             }
 
-            // ---- PERSISTIR ORDEN ----
-            LOG.log(Level.INFO, "Persistiendo orden en la base de datos...");
+            // ---- PERSISTIR ----
             em.persist(orden);
-
-            LOG.log(Level.INFO, "Ejecutando flush()...");
-            em.flush();
-            
-            // ---- PERSISTIR ORDEN ----
-            LOG.log(Level.INFO, "Persistiendo orden en la base de datos...");
-            em.persist(orden);
-
-            LOG.log(Level.INFO, "Ejecutando flush()...");
             em.flush();
 
-// ⭐ OCUPAR MESA SI EXISTE
+            // Ocupar mesa si existe
             if (orden.getMesa() != null && orden.getMesa().getId() != null) {
                 try {
                     salonService.ocuparMesa(orden.getMesa().getId());
-                    LOG.log(Level.INFO, "✅ Mesa {0} marcada como OCUPADA",
-                            orden.getMesa().getIdentificador());
                 } catch (Exception e) {
-                    LOG.log(Level.WARNING, "⚠️ No se pudo ocupar mesa: {0}", e.getMessage());
+                    LOG.log(Level.WARNING, "No se pudo ocupar mesa: {0}", e.getMessage());
                 }
             }
 
-            LOG.log(Level.INFO, "✅ Orden creada exitosamente con ID: {0}", orden.getId());
-
-            LOG.log(Level.INFO, "✅ Orden creada exitosamente con ID: {0}", orden.getId());
-            LOG.log(Level.INFO, "====== FIN CREACIÓN DE ORDEN ======");
-
+            LOG.log(Level.INFO, "✅ Orden creada: ID {0}", orden.getId());
             return orden;
 
         } catch (IllegalArgumentException e) {
-            LOG.log(Level.SEVERE, "❌ Error de validación: {0}", e.getMessage());
             throw new RuntimeException("Error al crear orden: " + e.getMessage(), e);
         } catch (Exception e) {
-            LOG.log(Level.SEVERE, "❌ Error inesperado al crear orden", e);
+            LOG.log(Level.SEVERE, "Error inesperado", e);
             throw new RuntimeException("Error al crear orden: " + e.getMessage(), e);
         }
     }
@@ -593,7 +541,7 @@ public DetalleOrden actualizarCantidadDetalle(Long ordenId, Long detalleId, Inte
                         LOG.log(Level.INFO, "✅ Mesa {0} liberada al facturar orden {1}",
                                 new Object[]{orden.getMesa().getIdentificador(), ordenId});
                     } catch (Exception e) {
-                        LOG.log(Level.WARNING, "⚠️ No se pudo liberar mesa: {0}", e.getMessage());
+                        LOG.log(Level.WARNING, "⚠ No se pudo liberar mesa: {0}", e.getMessage());
                     }
                 }
 

@@ -10,7 +10,9 @@ import jakarta.persistence.TypedQuery;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDateTime;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -214,13 +216,13 @@ public class FacturaService {
             }
             factura.setImpuestoServicio(impServicio);
 
-            // 4. **FIX: Validar descuento contra máximo permitido**
+            // 4. FIX: Validar descuento contra máximo permitido
             BigDecimal descuentoPct = descuentoPorcentaje != null ? descuentoPorcentaje : BigDecimal.ZERO;
             if (descuentoPct.compareTo(BigDecimal.ZERO) < 0) {
                 descuentoPct = BigDecimal.ZERO;
             }
 
-            // **FIX CRÍTICO: Validación mejorada con logging**
+            // FIX CRÍTICO: Validación mejorada con logging
             BigDecimal descuentoMaximo = params.getPorcDescuentoMaximo();
 
             LOG.log(Level.INFO, String.format(
@@ -234,7 +236,7 @@ public class FacturaService {
                 );
             }
 
-            // 5. **FIX: Calcular descuento sobre base correcta (subtotal + impuestos)**
+            // 5. FIX: Calcular descuento sobre base correcta (subtotal + impuestos)
             BigDecimal baseImponible = subtotal.add(impVenta).add(impServicio);
             BigDecimal descuentoMonto = BigDecimal.ZERO;
 
@@ -261,14 +263,14 @@ public class FacturaService {
     }
 
     /**
-     * **FIX: Calcular vuelto con validación robusta y tolerancia** Ubicación
+     * FIX: Calcular vuelto con validación robusta y tolerancia Ubicación
      * original: línea ~269
      */
     private void calcularVuelto(Factura factura) {
         BigDecimal totalRecibido = factura.getMontoEfectivo().add(factura.getMontoTarjeta());
         BigDecimal totalFactura = factura.getTotal();
 
-        // **FIX: Usar compareTo para comparación precisa**
+        // FIX: Usar compareTo para comparación precisa
         // Permitir una tolerancia mínima de 0.01 para errores de redondeo
         BigDecimal diferencia = totalRecibido.subtract(totalFactura);
         BigDecimal tolerancia = new BigDecimal("0.01");
@@ -445,8 +447,8 @@ public class FacturaService {
                 "FROM DetalleFactura d JOIN d.factura f " +
                 "WHERE f.fechaHora BETWEEN :inicio AND :fin AND f.estado = 'A' " +
                 "GROUP BY d.producto " +
-                "ORDER BY total DESC",
-                Object[].class
+   "ORDER BY total DESC",
+                    Object[].class
             );
             query.setParameter("inicio", inicio);
             query.setParameter("fin", fin);
@@ -457,4 +459,135 @@ public class FacturaService {
             throw new RuntimeException("Error: " + e.getMessage());
         }
     }
+
+    public Factura createFromMesa(Long mesaId,
+            Long usuarioId,
+            Long clienteId,
+            boolean aplicaImpuestoVenta,
+            boolean aplicaImpuestoServicio,
+            java.math.BigDecimal descuento,
+            java.math.BigDecimal montoEfectivo,
+            java.math.BigDecimal montoTarjeta) {
+        try {
+            System.out.println("🍽 Facturando todas las órdenes de mesa ID: " + mesaId);
+
+            // 1. Obtener TODAS las órdenes abiertas de la mesa
+            TypedQuery<Orden> query = em.createQuery(
+                    "SELECT o FROM Orden o WHERE o.mesa.id = :mesaId AND o.estado = 'ABIERTA'",
+                    Orden.class
+            );
+            query.setParameter("mesaId", mesaId);
+            List<Orden> ordenes = query.getResultList();
+
+            if (ordenes.isEmpty()) {
+                throw new RuntimeException("No hay órdenes abiertas para la mesa " + mesaId);
+            }
+
+            System.out.println("📋 Órdenes encontradas: " + ordenes.size());
+
+            // 2. Determinar el usuario responsable
+            Long usuarioEfectivoId = usuarioId != null ? usuarioId
+                    : (ordenes.get(0).getUsuario() != null ? ordenes.get(0).getUsuario().getId() : null);
+
+            if (usuarioEfectivoId == null) {
+                throw new RuntimeException("No se puede determinar el usuario/cajero");
+            }
+
+            // 3. Obtener o crear la caja abierta
+            CierreCaja cajaAbierta = cierreCajaService.getOrCreateCajaAbierta(usuarioEfectivoId);
+
+            // 4. Crear la factura
+            Factura factura = new Factura();
+            factura.setUsuario(em.getReference(Usuario.class, usuarioEfectivoId));
+            factura.setCierreCaja(cajaAbierta);
+
+            // Vincular la primera orden como referencia
+            factura.setOrden(ordenes.get(0));
+
+            if (clienteId != null) {
+                factura.setCliente(em.getReference(Cliente.class, clienteId));
+            }
+
+            // 5. Consolidar TODOS los detalles de TODAS las órdenes
+            Map<Long, DetalleFactura> detallesConsolidados = new HashMap<>();
+
+            for (Orden orden : ordenes) {
+                List<DetalleOrden> detallesOrden = ordenService.findDetallesByOrden(orden.getId());
+
+                for (DetalleOrden detOrden : detallesOrden) {
+                    Long productoId = detOrden.getProducto().getId();
+
+                    if (detallesConsolidados.containsKey(productoId)) {
+                        // Producto ya existe: sumar cantidad
+                        DetalleFactura detExistente = detallesConsolidados.get(productoId);
+                        int nuevaCantidad = detExistente.getCantidad() + detOrden.getCantidad();
+                        detExistente.setCantidad(nuevaCantidad);
+                        detExistente.calcularSubtotal();
+
+                        System.out.println("   ➕ Sumando " + detOrden.getProducto().getNombre()
+                                + ": " + detExistente.getCantidad() + " unidades");
+                    } else {
+                        // Producto nuevo: agregar
+                        DetalleFactura detFactura = new DetalleFactura();
+                        detFactura.setProducto(detOrden.getProducto());
+                        detFactura.setCantidad(detOrden.getCantidad());
+                        detFactura.setPrecioUnitario(detOrden.getPrecioUnitario());
+                        detFactura.calcularSubtotal();
+
+                        detallesConsolidados.put(productoId, detFactura);
+
+                        System.out.println("   ✅ Agregando " + detOrden.getProducto().getNombre()
+                                + ": " + detFactura.getCantidad() + " unidades");
+                    }
+                }
+            }
+
+            // 6. Agregar detalles consolidados a la factura
+            for (DetalleFactura detalle : detallesConsolidados.values()) {
+                factura.addDetalle(detalle);
+            }
+
+            System.out.println("📊 Total de productos consolidados: " + detallesConsolidados.size());
+
+            // 7. Calcular totales (reutiliza tu método existente)
+            calcularTotales(factura, aplicaImpuestoVenta, aplicaImpuestoServicio, descuento);
+
+            // 8. Registrar pagos y vuelto
+            factura.setMontoEfectivo(montoEfectivo);
+            factura.setMontoTarjeta(montoTarjeta);
+            calcularVuelto(factura);
+
+            // 9. Persistir factura
+            em.persist(factura);
+
+            // 10. Marcar TODAS las órdenes como FACTURADAS
+            for (Orden orden : ordenes) {
+                ordenService.marcarComoFacturada(orden.getId());
+                System.out.println("✅ Orden #" + orden.getId() + " marcada como FACTURADA");
+            }
+
+            // 11. Liberar la mesa
+            salonService.liberarMesa(mesaId);
+            System.out.println("🔓 Mesa #" + mesaId + " liberada");
+
+            // 12. Actualizar contadores de ventas
+            for (DetalleFactura detalle : factura.getDetalles()) {
+                productoService.incrementarVentas(
+                        detalle.getProducto().getId(),
+                        detalle.getCantidad()
+                );
+            }
+
+            em.flush();
+
+            System.out.println("✅ Factura consolidada creada: ID " + factura.getId());
+            return factura;
+
+        } catch (Exception e) {
+            LOG.log(Level.SEVERE, "Error al crear factura desde mesa", e);
+            throw new RuntimeException("Error al crear factura: " + e.getMessage());
+        }
+    }
+    
+    
 }
