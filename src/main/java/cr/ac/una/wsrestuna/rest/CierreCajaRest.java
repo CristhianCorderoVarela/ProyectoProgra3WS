@@ -149,4 +149,68 @@ public class CierreCajaRest {
         response.put("data", data);
         return response;
     }
+    
+    
+    @GET
+@Path("/usuario/{usuarioId}/rango")
+public Response findByUsuarioYRango(@PathParam("usuarioId") Long usuarioId,
+                                    @QueryParam("inicio") String inicioIso,
+                                    @QueryParam("fin")    String finIso) {
+    try {
+        var inicio = (inicioIso == null || inicioIso.isBlank())
+                ? null : java.time.LocalDateTime.parse(inicioIso);
+        var fin = (finIso == null || finIso.isBlank())
+                ? null : java.time.LocalDateTime.parse(finIso);
+
+        var lista = cierreService.findByUsuarioYFecha(usuarioId, inicio, fin);
+        return Response.ok(createResponse(true, "Cierres filtrados", lista)).build();
+    } catch (Exception e) {
+        LOG.log(Level.SEVERE, "Error filtro por rango", e);
+        return Response.status(Response.Status.BAD_REQUEST)
+                .entity(createResponse(false, "Parámetros inválidos: " + e.getMessage(), null))
+                .build();
+    }
+}
+    
+    @GET
+@Path("/usuario/{usuarioId}/abierto/totales")
+public Response abiertoConTotales(@PathParam("usuarioId") Long usuarioId) {
+    try {
+        var opt = cierreService.findAbiertoByUsuario(usuarioId);
+        if (opt.isEmpty()) {
+            return Response.ok(createResponse(true, "Sin caja abierta", null)).build();
+        }
+        CierreCaja cc = opt.get();
+        var tot = cierreService.totalesCajaAbierta(usuarioId);
+
+        // Construyo un DTO ligero sobre la misma entidad (sin tocarla en DB)
+        cc.setEfectivoSistema(tot.efectivo);
+        cc.setTarjetaSistema(tot.tarjeta);
+        // Ojo: no persisto ni modifico estado; solo devuelvo valores calculados.
+
+        Map<String, Object> data = new HashMap<>();
+        data.put("id", cc.getId());
+        data.put("usuarioId", cc.getUsuario().getId());
+        data.put("fechaApertura", cc.getFechaApertura());
+        data.put("fechaCierre", cc.getFechaCierre());
+        data.put("efectivoSistema", cc.getEfectivoSistema());
+        data.put("tarjetaSistema", cc.getTarjetaSistema());
+        data.put("efectivoDeclarado", cc.getEfectivoDeclarado());
+        data.put("tarjetaDeclarado", cc.getTarjetaDeclarado());
+        data.put("diferenciaEfectivo", cc.getDiferenciaEfectivo());
+        data.put("diferenciaTarjeta", cc.getDiferenciaTarjeta());
+        data.put("estado", cc.getEstado());
+        // Si quieres enviar conteo:
+        data.put("numeroFacturas", tot.cantidad);
+
+        return Response.ok(createResponse(true, "Caja abierta con totales", data)).build();
+    } catch (Exception e) {
+        LOG.log(Level.SEVERE, "Error al obtener caja abierta con totales", e);
+        return Response.status(Response.Status.INTERNAL_SERVER_ERROR)
+                .entity(createResponse(false, "Error: " + e.getMessage(), null))
+                .build();
+    }
+}
+
+
 }

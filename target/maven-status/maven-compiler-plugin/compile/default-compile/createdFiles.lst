@@ -8,6 +8,7 @@ cr\ac\una\wsrestuna\rest\ProductoRest.class
 cr\ac\una\wsrestuna\model\DetalleOrden.class
 cr\ac\una\wsrestuna\service\CierreCajaService.class
 cr\ac\una\wsrestuna\rest\CierreCajaRest.class
+cr\ac\una\wsrestuna\service\CierreCajaService$TotalesCaja.class
 cr\ac\una\wsrestuna\service\OrdenService.class
 cr\ac\una\wsrestuna\rest\ReportesRest.class
 cr\ac\una\wsrestuna\model\Usuario.class

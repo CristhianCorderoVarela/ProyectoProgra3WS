@@ -193,4 +193,58 @@ public class CierreCajaService {
             throw new RuntimeException("Error: " + e.getMessage());
         }
     }
+    
+    /** Totales desde la fecha de apertura de la caja abierta del usuario, con cierre_caja_id IS NULL */
+    public TotalesCaja totalesCajaAbierta(Long usuarioId) {
+        try {
+            // Obtener la caja abierta
+            var opt = findAbiertoByUsuario(usuarioId);
+            if (opt.isEmpty()) return new TotalesCaja(BigDecimal.ZERO, BigDecimal.ZERO, 0L, null);
+
+            CierreCaja cc = opt.get();
+
+            // JPQL directo sin NamedQuery adicional:
+            Object[] row = (Object[]) em.createQuery(
+                "SELECT COALESCE(SUM(f.montoEfectivo),0), " +
+                "       COALESCE(SUM(f.montoTarjeta),0), " +
+                "       COUNT(f.id) " +
+                "FROM Factura f " +
+                "WHERE f.usuario.id = :uid " +
+                "  AND f.fechaHora >= :desde " +
+                "  AND f.cierreCaja IS NULL " +   // aún no asignadas a un cierre
+                "  AND f.estado = 'A'")
+                .setParameter("uid", usuarioId)
+                .setParameter("desde", cc.getFechaApertura())
+                .getSingleResult();
+
+            BigDecimal ef = (BigDecimal) row[0];
+            BigDecimal tj = (BigDecimal) row[1];
+            Long count = (Long) row[2];
+
+            return new TotalesCaja(ef, tj, count, cc.getId());
+        } catch (Exception e) {
+            return new TotalesCaja(BigDecimal.ZERO, BigDecimal.ZERO, 0L, null);
+        }
+    }
+
+    public static class TotalesCaja {
+        public final BigDecimal efectivo;
+        public final BigDecimal tarjeta;
+        public final Long cantidad;
+        public final Long cierreId;
+        public TotalesCaja(BigDecimal ef, BigDecimal tj, Long c, Long id) {
+            this.efectivo = ef; this.tarjeta = tj; this.cantidad = c; this.cierreId = id;
+        }
+    }
+public List<CierreCaja> findByUsuarioYFecha(Long usuarioId, LocalDateTime inicio, LocalDateTime fin) {
+    String jpql = "SELECT c FROM CierreCaja c WHERE c.usuario.id = :uid ";
+    if (inicio != null) jpql += "AND c.fechaApertura >= :ini ";
+    if (fin != null)    jpql += "AND c.fechaApertura <  :fin ";
+    jpql += "ORDER BY c.fechaApertura DESC";
+
+    var q = em.createQuery(jpql, CierreCaja.class).setParameter("uid", usuarioId);
+    if (inicio != null) q.setParameter("ini", inicio);
+    if (fin != null)    q.setParameter("fin", fin);
+    return q.getResultList();
+}
 }
