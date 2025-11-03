@@ -4,7 +4,6 @@ package cr.ac.una.wsrestuna.service;
 import cr.ac.una.wsrestuna.model.CierreCaja;
 import cr.ac.una.wsrestuna.model.DetalleFactura;
 import cr.ac.una.wsrestuna.model.Factura;
-import cr.ac.una.wsrestuna.model.PopularidadProductoDTO;
 import cr.ac.una.wsrestuna.model.Producto;
 import jakarta.ejb.LocalBean;
 import jakarta.ejb.Stateless;
@@ -319,95 +318,6 @@ public Map<String, Object> cierreById(Long cierreId) {
     return out;
 }
 
-
-
-
- public List<PopularidadProductoDTO> popularidadProductos(LocalDate inicio, LocalDate fin, String grupoNombre) {
-        try {
-            LocalDateTime fechaInicio = (inicio != null) ? inicio.atStartOfDay() : LocalDate.now().withDayOfMonth(1).atStartOfDay();
-            LocalDateTime fechaFin = (fin != null) ? fin.atTime(LocalTime.MAX) : LocalDateTime.now();
-
-            String jpql =
-                "SELECT NEW cr.ac.una.wsrestuna.model.PopularidadProductoDTO(" +
-                " p.id, p.nombre, p.nombreCorto, g.nombre, SUM(df.cantidad), COALESCE(SUM(df.subtotal),0) ) " +
-                "FROM DetalleFactura df " +
-                "JOIN df.producto p " +
-                "JOIN p.grupo g " +
-                "JOIN df.factura f " +
-                "WHERE f.fechaHora BETWEEN :inicio AND :fin " +
-                "AND f.estado = 'A' ";
-
-            if (grupoNombre != null && !grupoNombre.isBlank()) {
-                jpql += "AND UPPER(g.nombre) LIKE :grupo ";
-            }
-
-            jpql += "GROUP BY p.id, p.nombre, p.nombreCorto, g.nombre " +
-                    "ORDER BY SUM(df.cantidad) DESC";
-
-            TypedQuery<PopularidadProductoDTO> q = em.createQuery(jpql, PopularidadProductoDTO.class);
-            q.setParameter("inicio", fechaInicio);
-            q.setParameter("fin", fechaFin);
-            if (grupoNombre != null && !grupoNombre.isBlank()) {
-                q.setParameter("grupo", "%" + grupoNombre.toUpperCase() + "%");
-            }
-
-            List<PopularidadProductoDTO> resultados = q.getResultList();
-
-            long total = resultados.stream().mapToLong(PopularidadProductoDTO::getCantidadVentas).sum();
-            if (total > 0) {
-                for (var dto : resultados) {
-                    double pct = (dto.getCantidadVentas() * 100.0) / total;
-                    dto.setPorcentajeVentas(Math.round(pct * 100.0) / 100.0);
-                }
-            }
-            return resultados;
-        } catch (Exception e) {
-            LOG.log(Level.SEVERE, "Error popularidadProductos(grupoNombre)", e);
-            return List.of();
-        }
-    }
-
-    // --- Popularidad filtrando por grupoId ---
-    public List<PopularidadProductoDTO> popularidadProductos(LocalDate inicio, LocalDate fin, Long grupoId) {
-        try {
-            LocalDateTime fechaInicio = (inicio != null) ? inicio.atStartOfDay() : LocalDate.now().withDayOfMonth(1).atStartOfDay();
-            LocalDateTime fechaFin = (fin != null) ? fin.atTime(LocalTime.MAX) : LocalDateTime.now();
-
-            StringBuilder jpql = new StringBuilder(
-                "SELECT NEW cr.ac.una.wsrestuna.model.PopularidadProductoDTO(" +
-                " p.id, p.nombre, p.nombreCorto, g.nombre, SUM(df.cantidad), COALESCE(SUM(df.subtotal),0) ) " +
-                "FROM DetalleFactura df " +
-                "JOIN df.producto p " +
-                "JOIN p.grupo g " +
-                "JOIN df.factura f " +
-                "WHERE f.fechaHora BETWEEN :inicio AND :fin " +
-                "AND f.estado = 'A' "
-            );
-            if (grupoId != null) {
-                jpql.append("AND g.id = :grupoId ");
-            }
-            jpql.append("GROUP BY p.id, p.nombre, p.nombreCorto, g.nombre ORDER BY SUM(df.cantidad) DESC");
-
-            TypedQuery<PopularidadProductoDTO> q = em.createQuery(jpql.toString(), PopularidadProductoDTO.class);
-            q.setParameter("inicio", fechaInicio);
-            q.setParameter("fin", fechaFin);
-            if (grupoId != null) q.setParameter("grupoId", grupoId);
-
-            List<PopularidadProductoDTO> resultados = q.getResultList();
-
-            long total = resultados.stream().mapToLong(PopularidadProductoDTO::getCantidadVentas).sum();
-            if (total > 0) {
-                for (var dto : resultados) {
-                    double pct = (dto.getCantidadVentas() * 100.0) / total;
-                    dto.setPorcentajeVentas(Math.round(pct * 100.0) / 100.0);
-                }
-            }
-            return resultados;
-        } catch (Exception e) {
-            LOG.log(Level.SEVERE, "Error popularidadProductos(grupoId)", e);
-            return List.of();
-        }
-    }
 
 
 
