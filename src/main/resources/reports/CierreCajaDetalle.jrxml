@@ -1,0 +1,250 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<jasperReport xmlns="http://jasperreports.sourceforge.net/jasperreports"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xmlns:c="http://jasperreports.sourceforge.net/jasperreports/components"
+  xsi:schemaLocation="
+    http://jasperreports.sourceforge.net/jasperreports http://jasperreports.sourceforge.net/xsd/jasperreport.xsd
+    http://jasperreports.sourceforge.net/jasperreports/components http://jasperreports.sourceforge.net/xsd/components.xsd"
+  name="CierreCajaDetalle" pageWidth="842" pageHeight="595" orientation="Landscape"
+  columnWidth="762" leftMargin="40" rightMargin="40" topMargin="36" bottomMargin="36"
+  uuid="11111111-1111-1111-1111-111111111111">
+
+  <!-- Estilos -->
+  <style name="title" fontSize="14" isBold="true" forecolor="#FFFFFF"/>
+  <style name="subtitle" fontSize="11" forecolor="#FFFFFF"/>
+  <style name="th" isBold="true" mode="Opaque" backcolor="#EAF9F0"/>
+  <style name="tdLeft"/>
+  <style name="tdRight"/>
+  <style name="tdCenter"/>
+
+  <!-- SubDataset -->
+  <subDataset name="MOVS_DS" uuid="22222222-2222-2222-2222-222222222222">
+    <field name="facturaId" class="java.lang.Object"/>
+    <field name="fecha"     class="java.lang.Object"/>
+    <field name="cliente"   class="java.lang.Object"/>
+    <field name="subtotal"  class="java.lang.Object"/>
+    <field name="impVenta"  class="java.lang.Object"/>
+    <field name="impServ"   class="java.lang.Object"/>
+    <field name="descuento" class="java.lang.Object"/>
+    <field name="total"     class="java.lang.Object"/>
+
+    <variable name="V_SUBTOTAL" class="java.math.BigDecimal" calculation="Sum">
+      <variableExpression><![CDATA[
+        ($F{subtotal}==null) ? java.math.BigDecimal.ZERO
+          : new java.math.BigDecimal(((Number)$F{subtotal}).toString())
+      ]]></variableExpression>
+    </variable>
+    <variable name="V_IVENTA" class="java.math.BigDecimal" calculation="Sum">
+      <variableExpression><![CDATA[
+        ($F{impVenta}==null) ? java.math.BigDecimal.ZERO
+          : new java.math.BigDecimal(((Number)$F{impVenta}).toString())
+      ]]></variableExpression>
+    </variable>
+    <variable name="V_ISERV" class="java.math.BigDecimal" calculation="Sum">
+      <variableExpression><![CDATA[
+        ($F{impServ}==null) ? java.math.BigDecimal.ZERO
+          : new java.math.BigDecimal(((Number)$F{impServ}).toString())
+      ]]></variableExpression>
+    </variable>
+    <variable name="V_DESC" class="java.math.BigDecimal" calculation="Sum">
+      <variableExpression><![CDATA[
+        ($F{descuento}==null) ? java.math.BigDecimal.ZERO
+          : new java.math.BigDecimal(((Number)$F{descuento}).toString())
+      ]]></variableExpression>
+    </variable>
+    <variable name="V_TOTAL" class="java.math.BigDecimal" calculation="Sum">
+      <variableExpression><![CDATA[
+        ($F{total}==null) ? java.math.BigDecimal.ZERO
+          : new java.math.BigDecimal(((Number)$F{total}).toString())
+      ]]></variableExpression>
+    </variable>
+  </subDataset>
+
+  <!-- Parámetros (sin cambios) -->
+  <parameter name="P_TITULO"     class="java.lang.String"/>
+  <parameter name="CAB_ID"       class="java.lang.Object"/>
+  <parameter name="CAB_ESTADO"   class="java.lang.Object"/>
+  <parameter name="CAB_APERTURA" class="java.lang.Object"/>
+  <parameter name="CAB_CIERRE"   class="java.lang.Object"/>
+  <parameter name="CAB_USUARIO"  class="java.lang.Object"/>
+  <parameter name="CAB_EF_SIS" class="java.lang.Object"/>
+  <parameter name="CAB_TJ_SIS" class="java.lang.Object"/>
+  <parameter name="CAB_EF_DEC" class="java.lang.Object"/>
+  <parameter name="CAB_TJ_DEC" class="java.lang.Object"/>
+  <parameter name="CAB_DIF_EF" class="java.lang.Object"/>
+  <parameter name="CAB_DIF_TJ" class="java.lang.Object"/>
+  <parameter name="DS_MOV" class="net.sf.jasperreports.engine.JRDataSource"/>
+
+  <!-- Variables maestras -->
+  <variable name="SUM_SUBTOTAL" class="java.math.BigDecimal"/>
+  <variable name="SUM_IVENTA"   class="java.math.BigDecimal"/>
+  <variable name="SUM_ISERV"    class="java.math.BigDecimal"/>
+  <variable name="SUM_DESC"     class="java.math.BigDecimal"/>
+  <variable name="SUM_TOTAL"    class="java.math.BigDecimal"/>
+
+  <variable name="TOT_SIS" class="java.math.BigDecimal">
+    <variableExpression><![CDATA[
+      ( $P{CAB_EF_SIS}==null ? java.math.BigDecimal.ZERO : new java.math.BigDecimal($P{CAB_EF_SIS}.toString()) )
+      .add( $P{CAB_TJ_SIS}==null ? java.math.BigDecimal.ZERO : new java.math.BigDecimal($P{CAB_TJ_SIS}.toString()) )
+    ]]></variableExpression>
+  </variable>
+  <variable name="TOT_DEC" class="java.math.BigDecimal">
+    <variableExpression><![CDATA[
+      ( $P{CAB_EF_DEC}==null ? java.math.BigDecimal.ZERO : new java.math.BigDecimal($P{CAB_EF_DEC}.toString()) )
+      .add( $P{CAB_TJ_DEC}==null ? java.math.BigDecimal.ZERO : new java.math.BigDecimal($P{CAB_TJ_DEC}.toString()) )
+    ]]></variableExpression>
+  </variable>
+  <variable name="TOT_DIF" class="java.math.BigDecimal">
+    <variableExpression><![CDATA[
+      ( $P{CAB_DIF_EF}==null ? java.math.BigDecimal.ZERO : new java.math.BigDecimal($P{CAB_DIF_EF}.toString()) )
+      .add( $P{CAB_DIF_TJ}==null ? java.math.BigDecimal.ZERO : new java.math.BigDecimal($P{CAB_DIF_TJ}.toString()) )
+    ]]></variableExpression>
+  </variable>
+
+  <!-- Title -->
+  <title>
+    <band height="54">
+      <rectangle>
+        <reportElement x="0" y="0" width="762" height="54" mode="Opaque" backcolor="#22C55E"/>
+      </rectangle>
+      <textField>
+        <reportElement style="title" x="0" y="6" width="762" height="18"/>
+        <textElement textAlignment="Center" verticalAlignment="Middle"/>
+        <textFieldExpression><![CDATA[$P{P_TITULO}]]></textFieldExpression>
+      </textField>
+      <textField>
+        <reportElement style="subtitle" x="0" y="30" width="762" height="18"/>
+        <textElement textAlignment="Center"/>
+        <textFieldExpression><![CDATA[
+          "Cierre #" + String.valueOf($P{CAB_ID}) +
+          "   —   Estado: " + String.valueOf($P{CAB_ESTADO})
+        ]]></textFieldExpression>
+      </textField>
+    </band>
+  </title>
+
+  <!-- Page Header -->
+  <pageHeader>
+    <band height="70">
+      <textField>
+        <reportElement x="0" y="0" width="762" height="16"/>
+        <textElement/>
+        <textFieldExpression><![CDATA[
+          "Apertura: " + String.valueOf($P{CAB_APERTURA}).replace('T',' ') +
+          "     Cierre: " + String.valueOf($P{CAB_CIERRE}).replace('T',' ') +
+          "     Cajero: " + String.valueOf($P{CAB_USUARIO})
+        ]]></textFieldExpression>
+      </textField>
+
+      <!-- Panel Sistema -->
+      <rectangle><reportElement x="0"   y="22" width="244" height="48" mode="Opaque" backcolor="#F8FAFC"/></rectangle>
+      <staticText><reportElement x="6"   y="26" width="70" height="12"/><textElement/><text><![CDATA[Sistema]]></text></staticText>
+      <staticText><reportElement x="6"   y="40" width="60" height="12"/><textElement/><text><![CDATA[Efectivo:]]></text></staticText>
+      <textField pattern="#,##0.00"><reportElement style="tdRight" x="80" y="40" width="75" height="12"/><textElement textAlignment="Right"/><textFieldExpression><![CDATA[$P{CAB_EF_SIS}]]></textFieldExpression></textField>
+      <staticText><reportElement x="6"   y="52" width="60" height="12"/><textElement/><text><![CDATA[Tarjeta:]]></text></staticText>
+      <textField pattern="#,##0.00"><reportElement style="tdRight" x="80" y="52" width="75" height="12"/><textElement textAlignment="Right"/><textFieldExpression><![CDATA[$P{CAB_TJ_SIS}]]></textFieldExpression></textField>
+
+      <!-- Panel Declarado -->
+      <rectangle><reportElement x="259" y="22" width="244" height="48" mode="Opaque" backcolor="#F8FAFC"/></rectangle>
+      <staticText><reportElement x="265" y="26" width="70" height="12"/><textElement/><text><![CDATA[Declarado]]></text></staticText>
+      <staticText><reportElement x="265" y="40" width="60" height="12"/><textElement/><text><![CDATA[Efectivo:]]></text></staticText>
+      <textField pattern="#,##0.00"><reportElement style="tdRight" x="339" y="40" width="75" height="12"/><textElement textAlignment="Right"/><textFieldExpression><![CDATA[$P{CAB_EF_DEC}]]></textFieldExpression></textField>
+      <staticText><reportElement x="265" y="52" width="60" height="12"/><textElement/><text><![CDATA[Tarjeta:]]></text></staticText>
+      <textField pattern="#,##0.00"><reportElement style="tdRight" x="339" y="52" width="75" height="12"/><textElement textAlignment="Right"/><textFieldExpression><![CDATA[$P{CAB_TJ_DEC}]]></textFieldExpression></textField>
+
+      <!-- Panel Diferencias -->
+      <rectangle><reportElement x="518" y="22" width="244" height="48" mode="Opaque" backcolor="#ECFDF3"/></rectangle>
+      <staticText><reportElement x="524" y="26" width="70" height="12"/><textElement/><text><![CDATA[Diferencias]]></text></staticText>
+      <staticText><reportElement x="524" y="40" width="80" height="12"/><textElement/><text><![CDATA[Δ Efectivo:]]></text></staticText>
+      <textField pattern="#,##0.00"><reportElement style="tdRight" x="598" y="40" width="80" height="12"/><textElement textAlignment="Right"/><textFieldExpression><![CDATA[$P{CAB_DIF_EF}]]></textFieldExpression></textField>
+      <staticText><reportElement x="524" y="52" width="80" height="12"/><textElement/><text><![CDATA[Δ Tarjeta:]]></text></staticText>
+      <textField pattern="#,##0.00"><reportElement style="tdRight" x="598" y="52" width="80" height="12"/><textElement textAlignment="Right"/><textFieldExpression><![CDATA[$P{CAB_DIF_TJ}]]></textFieldExpression></textField>
+    </band>
+  </pageHeader>
+
+  <!-- Column Header -->
+  <columnHeader>
+    <band height="22">
+      <staticText><reportElement style="th" x="0"   y="0" width="52"  height="22"/><textElement textAlignment="Center" verticalAlignment="Middle"/><text><![CDATA[ID]]></text></staticText>
+      <staticText><reportElement style="th" x="54"  y="0" width="155" height="22"/><textElement textAlignment="Center" verticalAlignment="Middle"/><text><![CDATA[Fecha]]></text></staticText>
+      <staticText><reportElement style="th" x="211" y="0" width="265" height="22"/><textElement textAlignment="Center" verticalAlignment="Middle"/><text><![CDATA[Cliente]]></text></staticText>
+      <staticText><reportElement style="th" x="478" y="0" width="59"  height="22"/><textElement textAlignment="Center" verticalAlignment="Middle"/><text><![CDATA[Subt.]]></text></staticText>
+      <staticText><reportElement style="th" x="539" y="0" width="52"  height="22"/><textElement textAlignment="Center" verticalAlignment="Middle"/><text><![CDATA[IV]]></text></staticText>
+      <staticText><reportElement style="th" x="593" y="0" width="52"  height="22"/><textElement textAlignment="Center" verticalAlignment="Middle"/><text><![CDATA[IS]]></text></staticText>
+      <staticText><reportElement style="th" x="647" y="0" width="52"  height="22"/><textElement textAlignment="Center" verticalAlignment="Middle"/><text><![CDATA[Desc.]]></text></staticText>
+      <staticText><reportElement style="th" x="701" y="0" width="61"  height="22"/><textElement textAlignment="Center" verticalAlignment="Middle"/><text><![CDATA[Total]]></text></staticText>
+    </band>
+  </columnHeader>
+
+  <!-- Detail (LIST) -->
+  <detail>
+    <band height="18">
+      <componentElement>
+        <reportElement x="0" y="0" width="762" height="18"/>
+        <c:list>
+          <datasetRun subDataset="MOVS_DS">
+            <dataSourceExpression><![CDATA[$P{DS_MOV}]]></dataSourceExpression>
+            <returnValue fromVariable="V_SUBTOTAL" toVariable="SUM_SUBTOTAL"/>
+            <returnValue fromVariable="V_IVENTA"   toVariable="SUM_IVENTA"/>
+            <returnValue fromVariable="V_ISERV"    toVariable="SUM_ISERV"/>
+            <returnValue fromVariable="V_DESC"     toVariable="SUM_DESC"/>
+            <returnValue fromVariable="V_TOTAL"    toVariable="SUM_TOTAL"/>
+          </datasetRun>
+
+          <c:listContents height="18" width="762">
+            <textField>
+              <reportElement style="tdCenter" x="0"   y="0" width="52"  height="18"/>
+              <textElement textAlignment="Center"/>
+              <textFieldExpression><![CDATA[$F{facturaId}]]></textFieldExpression>
+            </textField>
+
+            <!-- FECHA (compatible) -->
+            <textField isStretchWithOverflow="true">
+              <reportElement style="tdLeft" x="54" y="0" width="155" height="18" positionType="Float"/>
+              <textElement/>
+              <textFieldExpression><![CDATA[String.valueOf($F{fecha})]]></textFieldExpression>
+            </textField>
+
+            <!-- CLIENTE (compatible) -->
+            <textField isStretchWithOverflow="true">
+              <reportElement style="tdLeft" x="211" y="0" width="265" height="18" positionType="Float"/>
+              <textElement/>
+              <textFieldExpression><![CDATA[String.valueOf($F{cliente})]]></textFieldExpression>
+            </textField>
+
+            <textField pattern="#,##0.00"><reportElement style="tdRight" x="478" y="0" width="59"  height="18"/><textElement textAlignment="Right"/><textFieldExpression><![CDATA[$F{subtotal}]]></textFieldExpression></textField>
+            <textField pattern="#,##0.00"><reportElement style="tdRight" x="539" y="0" width="52"  height="18"/><textElement textAlignment="Right"/><textFieldExpression><![CDATA[$F{impVenta}]]></textFieldExpression></textField>
+            <textField pattern="#,##0.00"><reportElement style="tdRight" x="593" y="0" width="52"  height="18"/><textElement textAlignment="Right"/><textFieldExpression><![CDATA[$F{impServ}]]></textFieldExpression></textField>
+            <textField pattern="#,##0.00"><reportElement style="tdRight" x="647" y="0" width="52"  height="18"/><textElement textAlignment="Right"/><textFieldExpression><![CDATA[$F{descuento}]]></textFieldExpression></textField>
+            <textField pattern="#,##0.00"><reportElement style="tdRight" x="701" y="0" width="61"  height="18"/><textElement textAlignment="Right"/><textFieldExpression><![CDATA[$F{total}]]></textFieldExpression></textField>
+          </c:listContents>
+        </c:list>
+      </componentElement>
+    </band>
+  </detail>
+
+  <!-- Summary -->
+  <summary>
+    <band height="80">
+      <rectangle><reportElement x="0" y="0" width="762" height="24" mode="Opaque" backcolor="#F8FAFC"/></rectangle>
+      <staticText><reportElement x="211" y="4" width="265" height="16"/><textElement textAlignment="Center"/><text><![CDATA[Totales de movimientos]]></text></staticText>
+
+      <textField pattern="#,##0.00"><reportElement style="tdRight" x="478" y="4" width="59" height="16"/><textElement textAlignment="Right"/><textFieldExpression><![CDATA[$V{SUM_SUBTOTAL}]]></textFieldExpression></textField>
+      <textField pattern="#,##0.00"><reportElement style="tdRight" x="539" y="4" width="52" height="16"/><textElement textAlignment="Right"/><textFieldExpression><![CDATA[$V{SUM_IVENTA}]]></textFieldExpression></textField>
+      <textField pattern="#,##0.00"><reportElement style="tdRight" x="593" y="4" width="52" height="16"/><textElement textAlignment="Right"/><textFieldExpression><![CDATA[$V{SUM_ISERV}]]></textFieldExpression></textField>
+      <textField pattern="#,##0.00"><reportElement style="tdRight" x="647" y="4" width="52" height="16"/><textElement textAlignment="Right"/><textFieldExpression><![CDATA[$V{SUM_DESC}]]></textFieldExpression></textField>
+      <textField pattern="#,##0.00"><reportElement style="tdRight" x="701" y="4" width="61" height="16"/><textElement textAlignment="Right"/><textFieldExpression><![CDATA[$V{SUM_TOTAL}]]></textFieldExpression></textField>
+
+      <line><reportElement x="0" y="30" width="762" height="1"/></line>
+
+      <staticText><reportElement x="0"   y="38" width="120" height="14"/><textElement/><text><![CDATA[Total Sistema:]]></text></staticText>
+      <textField pattern="#,##0.00"><reportElement style="tdRight" x="260" y="38" width="80" height="14"/><textElement textAlignment="Right"/><textFieldExpression><![CDATA[$V{TOT_SIS}]]></textFieldExpression></textField>
+
+      <staticText><reportElement x="340" y="38" width="120" height="14"/><textElement/><text><![CDATA[Total Declarado:]]></text></staticText>
+      <textField pattern="#,##0.00"><reportElement style="tdRight" x="520" y="38" width="80" height="14"/><textElement textAlignment="Right"/><textFieldExpression><![CDATA[$V{TOT_DEC}]]></textFieldExpression></textField>
+
+      <staticText><reportElement x="620" y="38" width="55" height="14"/><textElement/><text><![CDATA[Δ Total:]]></text></staticText>
+      <textField pattern="#,##0.00"><reportElement style="tdRight" x="701" y="38" width="61" height="14"/><textElement textAlignment="Right"/><textFieldExpression><![CDATA[$V{TOT_DIF}]]></textFieldExpression></textField>
+    </band>
+  </summary>
+</jasperReport>

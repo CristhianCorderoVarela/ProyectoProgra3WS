@@ -1,8 +1,8 @@
 // src/main/java/cr/ac/una/wsrestuna/rest/ReportesRest.java
 package cr.ac.una.wsrestuna.rest;
 
+import cr.ac.una.wsrestuna.service.ReportesPdfService;
 import cr.ac.una.wsrestuna.service.ReportesService;
-import cr.ac.una.wsrestuna.util.JasperUtil;
 import jakarta.ejb.EJB;
 import jakarta.ws.rs.*;
 import jakarta.ws.rs.core.MediaType;
@@ -10,7 +10,8 @@ import jakarta.ws.rs.core.Response;
 
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
-import java.util.*;
+import java.util.List;
+import java.util.Map;
 
 @Path("/reportes")
 @Consumes(MediaType.APPLICATION_JSON)
@@ -20,9 +21,12 @@ public class ReportesRest {
     @EJB
     private ReportesService reportesService;
 
+    @EJB
+    private ReportesPdfService reportesPdfService;
+
     private static final DateTimeFormatter DF = DateTimeFormatter.ofPattern("yyyy-MM-dd");
 
-    // ===== JSON =====
+    // ===== Endpoints JSON =====
     @GET @Path("/facturas")
     public Response facturas(@QueryParam("fechaInicio") String fIni,
                              @QueryParam("fechaFin")    String fFin,
@@ -53,7 +57,15 @@ public class ReportesRest {
         return ok(data);
     }
 
-    
+    // ===== PDF DETALLE (override de Produces) =====
+    @GET @Path("/cierres/{id}/pdf")
+    @Produces("application/pdf")
+    public Response cierreByIdPdf(@PathParam("id") Long id){
+        byte[] pdf = reportesPdfService.cierreByIdPdf(id);
+        return Response.ok(pdf)
+                .header("Content-Disposition","inline; filename=cierre-"+id+".pdf")
+                .build();
+    }
 
     // ===== helpers =====
     private Response ok(List<Map<String, Object>> data) {
@@ -67,6 +79,7 @@ public class ReportesRest {
 
     private static boolean blank(String s) { return s == null || s.isBlank(); }
 
+    @SuppressWarnings("unused")
     private String rango(LocalDate ini, LocalDate fin) {
         String sIni = (ini == null) ? "—" : DF.format(ini);
         String sFin = (fin == null) ? "—" : DF.format(fin);

@@ -24,6 +24,13 @@ import java.util.logging.Logger;
 public class ReportesService {
 
     private static final Logger LOG = Logger.getLogger(ReportesService.class.getName());
+    
+private static String fmt(LocalDateTime dt) {
+    return (dt == null) ? "" : dt.toString(); // o DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
+}
+private static String nzs(String s) { return (s == null) ? "" : s; }
+// nz(BigDecimal) ya lo tienes; si no:
+private static BigDecimal nz(BigDecimal v) { return (v == null) ? BigDecimal.ZERO : v; }
 
     @PersistenceContext(unitName = "WsRestUNA")
     private EntityManager em;
@@ -242,9 +249,7 @@ public class ReportesService {
     // ==============================
     // Auxiliares
     // ==============================
-    private BigDecimal nz(BigDecimal v) {
-        return (v == null) ? BigDecimal.ZERO : v;
-    }
+    
 
     // Compat (si en algún lado llamas estos nombres)
     public List<Map<String, Object>> listadoFacturas(LocalDate desde, LocalDate hasta, String usuario, String estado) {
@@ -255,12 +260,19 @@ public class ReportesService {
         return cierres(fecha, usuario);
     }
     
-   public Map<String,Object> cierreById(Long cierreId) {
+   // ReportesService.java
+public Map<String, Object> cierreById(Long cierreId) {
     CierreCaja c = em.find(CierreCaja.class, cierreId);
-    if (c == null) return Map.of("cierre", Map.of(), "movimientos", List.of());
+
+    Map<String,Object> out = new LinkedHashMap<>();
+    if (c == null) {
+        out.put("cierre", new LinkedHashMap<>());   // vacío pero no null
+        out.put("movimientos", List.of());          // lista vacía
+        return out;
+    }
 
     var ini = c.getFechaApertura();
-    var fin = c.getFechaCierre() != null ? c.getFechaCierre() : LocalDateTime.now();
+    var fin = (c.getFechaCierre() != null) ? c.getFechaCierre() : LocalDateTime.now();
     Long uid = c.getUsuario().getId();
 
     var facturas = em.createQuery(
@@ -271,35 +283,42 @@ public class ReportesService {
         .setParameter("fin", fin)
         .getResultList();
 
-    List<Map<String,Object>> movs = new ArrayList<>();
+    // detalle
+    List<Map<String,Object>> movs = new ArrayList<>(facturas.size());
     for (Factura f : facturas) {
-        movs.add(Map.of(
-            "facturaId", f.getId(),
-            "fecha", Objects.toString(f.getFechaHora(), null),
-            "cliente", f.getCliente() != null ? f.getCliente().getNombre() : null,
-            "subtotal", nz(f.getSubtotal()),
-            "impVenta", nz(f.getImpuestoVenta()),
-            "impServ", nz(f.getImpuestoServicio()),
-            "descuento", nz(f.getDescuento()),
-            "total", nz(f.getTotal())
-        ));
+        Map<String,Object> row = new LinkedHashMap<>();
+        row.put("facturaId", f.getId());
+        row.put("fecha", fmt(f.getFechaHora()));
+        row.put("cliente", f.getCliente() != null ? nzs(f.getCliente().getNombre()) : "");
+        row.put("subtotal", nz(f.getSubtotal()));
+        row.put("impVenta", nz(f.getImpuestoVenta()));
+        row.put("impServ", nz(f.getImpuestoServicio()));
+        row.put("descuento", nz(f.getDescuento()));
+        row.put("total", nz(f.getTotal()));
+        movs.add(row);
     }
 
+    // cabecera
     Map<String,Object> cab = new LinkedHashMap<>();
-cab.put("id", c.getId());
-cab.put("usuario", c.getUsuario().getUsuario());
-cab.put("usuarioNombre", c.getUsuario().getNombre());
-cab.put("apertura", c.getFechaApertura());
-cab.put("cierre", c.getFechaCierre());
-cab.put("efectivoSistema", nz(c.getEfectivoSistema()));
-cab.put("tarjetaSistema", nz(c.getTarjetaSistema()));
-cab.put("efectivoDecl", nz(c.getEfectivoDeclarado()));
-cab.put("tarjetaDecl", nz(c.getTarjetaDeclarado()));
-cab.put("difEfectivo", nz(c.getDiferenciaEfectivo()));
-cab.put("difTarjeta", nz(c.getDiferenciaTarjeta()));
-    
-    return Map.of("cierre", cab, "movimientos", movs);
+    cab.put("id", c.getId());
+    cab.put("estado", c.getEstado());    
+    cab.put("usuario", nzs(c.getUsuario().getUsuario()));
+    cab.put("usuarioNombre", nzs(c.getUsuario().getNombre()));
+    cab.put("apertura", fmt(c.getFechaApertura()));
+    cab.put("cierre", fmt(c.getFechaCierre()));
+    cab.put("efectivoSistema", nz(c.getEfectivoSistema()));
+    cab.put("tarjetaSistema", nz(c.getTarjetaSistema()));
+    cab.put("efectivoDecl", nz(c.getEfectivoDeclarado()));
+    cab.put("tarjetaDecl", nz(c.getTarjetaDeclarado()));
+    cab.put("difEfectivo", nz(c.getDiferenciaEfectivo()));
+    cab.put("difTarjeta", nz(c.getDiferenciaTarjeta()));
+
+    out.put("cierre",      cab);
+    out.put("movimientos", movs);
+    return out;
 }
+
+
 
 
 }
