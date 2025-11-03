@@ -1,4 +1,3 @@
-// src/main/java/cr/ac/una/wsrestuna/resources/ReportesPdfResource.java
 package cr.ac.una.wsrestuna.resources;
 
 import cr.ac.una.wsrestuna.service.ReportesPdfService;
@@ -16,7 +15,6 @@ public class ReportesPdfResource {
     @Inject
     ReportesPdfService pdf;
 
-    // GET /api/reportes/facturas/pdf?fechaInicio=...&fechaFin=...&estado=...&usuario=...
     @GET @Path("/facturas/pdf")
     @Produces("application/pdf")
     public Response facturasPdf(@QueryParam("fechaInicio") String fi,
@@ -29,7 +27,6 @@ public class ReportesPdfResource {
                 .build();
     }
 
-    // GET /api/reportes/productos/top/pdf?fechaInicio=...&fechaFin=...&grupo=...&top=10
     @GET @Path("/productos/top/pdf")
     @Produces("application/pdf")
     public Response productosTopPdf(@QueryParam("fechaInicio") String fi,
@@ -42,7 +39,6 @@ public class ReportesPdfResource {
                 .build();
     }
 
-    // GET /api/reportes/cierres/pdf?fecha=YYYY-MM-DD&usuario=...
     @GET @Path("/cierres/pdf")
     @Produces("application/pdf")
     public Response cierresPdf(@QueryParam("fecha") String f,
@@ -57,4 +53,14 @@ public class ReportesPdfResource {
         if (s == null || s.isBlank()) return null;
         try { return LocalDate.parse(s); } catch (Exception e) { return null; }
     }
+    
+    @GET
+@Path("/cierres/{id}/pdf")
+@Produces("application/pdf")
+public Response cierreByIdPdf(@PathParam("id") Long id) {
+    byte[] bytes = pdf.cierreByIdPdf(id);
+    return Response.ok(bytes)
+        .header("Content-Disposition", "inline; filename=cierre-" + id + ".pdf")
+        .build();
+}
 }

@@ -53,67 +53,7 @@ public class ReportesRest {
         return ok(data);
     }
 
-    // ===== PDF =====
-    @GET @Path("/facturas/pdf")
-    @Produces("application/pdf")
-    public Response facturasPdf(@QueryParam("fechaInicio") String fIni,
-                                @QueryParam("fechaFin")    String fFin,
-                                @QueryParam("estado")      String estado,
-                                @QueryParam("usuario")     String usuario) {
-        LocalDate ini = blank(fIni) ? null : LocalDate.parse(fIni);
-        LocalDate fin = blank(fFin) ? null : LocalDate.parse(fFin);
-
-        List<Map<String, Object>> data = reportesService.facturas(ini, fin, usuario, estado);
-
-        Map<String, Object> params = new HashMap<>();
-        params.put("P_TITULO", "Listado de facturas");
-        params.put("P_RANGO", rango(ini, fin));
-
-        byte[] pdf = JasperUtil.renderPdfFromMaps("/reports/facturas.jrxml", data, params);
-        return Response.ok(pdf, "application/pdf")
-                .header("Content-Disposition", "inline; filename=facturas.pdf")
-                .build();
-    }
-
-    @GET @Path("/productos/top/pdf")
-    @Produces("application/pdf")
-    public Response productosTopPdf(@QueryParam("fechaInicio") String fIni,
-                                    @QueryParam("fechaFin")    String fFin,
-                                    @QueryParam("grupo")       String grupo,
-                                    @QueryParam("top")         Integer top) {
-        LocalDate ini = blank(fIni) ? null : LocalDate.parse(fIni);
-        LocalDate fin = blank(fFin) ? null : LocalDate.parse(fFin);
-
-        List<Map<String, Object>> data = reportesService.productosTop(ini, fin, grupo, top);
-
-        Map<String, Object> params = new HashMap<>();
-        params.put("P_TITULO", "Productos más vendidos");
-        params.put("P_RANGO",  rango(ini, fin));
-
-        byte[] pdf = JasperUtil.renderPdfFromMaps("/reports/productos_top.jrxml", data, params);
-        return Response.ok(pdf, "application/pdf")
-                .header("Content-Disposition", "inline; filename=productos-top.pdf")
-                .build();
-    }
-
-    @GET @Path("/cierres/pdf")
-    @Produces("application/pdf")
-    public Response cierresPdf(@QueryParam("fecha")   String f,
-                               @QueryParam("usuario") String cajero) {
-        LocalDate fecha = blank(f) ? null : LocalDate.parse(f);
-
-        List<Map<String, Object>> data = reportesService.cierres(fecha, cajero);
-
-        Map<String, Object> params = new HashMap<>();
-        params.put("P_TITULO", "Cierre de caja");
-        params.put("P_FECHA",  (fecha == null) ? "—" : DF.format(fecha));
-        params.put("P_CAJERO", (cajero == null || cajero.isBlank()) ? "Todos" : cajero);
-
-        byte[] pdf = JasperUtil.renderPdfFromMaps("/reports/cierres.jrxml", data, params);
-        return Response.ok(pdf, "application/pdf")
-                .header("Content-Disposition", "inline; filename=cierre-caja.pdf")
-                .build();
-    }
+    
 
     // ===== helpers =====
     private Response ok(List<Map<String, Object>> data) {

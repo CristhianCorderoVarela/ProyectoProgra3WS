@@ -5,49 +5,63 @@
   name="ProductosTop" pageWidth="595" pageHeight="842" columnWidth="515"
   leftMargin="40" rightMargin="40" topMargin="40" bottomMargin="40" uuid="22222222-2222-2222-2222-222222222222">
 
-  <parameter name="P_TITULO" class="java.lang.String"/>
-  <parameter name="P_RANGO" class="java.lang.String"/>
+  <style name="title" fontSize="14" isBold="true" forecolor="#FFFFFF" hTextAlign="Center" vTextAlign="Middle"/>
+  <style name="subtitle" fontSize="11" forecolor="#FFFFFF" hTextAlign="Center"/>
+  <style name="th" isBold="true" mode="Opaque" backcolor="#FFF1E6" hTextAlign="Center" vTextAlign="Middle"/>
+  <style name="tdLeft"  hTextAlign="Left"/>
+  <style name="tdRight" hTextAlign="Right"/>
+  <style name="tdCenter" hTextAlign="Center"/>
 
-  <field name="id" class="java.lang.Object"/>
-  <field name="nombre" class="java.lang.Object"/>
+  <parameter name="P_TITULO" class="java.lang.String"/>
+  <parameter name="P_RANGO"  class="java.lang.String"/>
+
+  <field name="id"          class="java.lang.Object"/>
+  <field name="nombre"      class="java.lang.Object"/>
   <field name="nombreCorto" class="java.lang.Object"/>
-  <field name="grupo" class="java.lang.Object"/>
-  <field name="precio" class="java.lang.Object"/>
+  <field name="grupo"       class="java.lang.Object"/>
+  <field name="precio"      class="java.lang.Object"/>
   <field name="totalVentas" class="java.lang.Object"/>
-  <field name="estado" class="java.lang.Object"/>
+  <field name="estado"      class="java.lang.Object"/>
+
+  <variable name="V_SUM_CANT" class="java.lang.Long" calculation="Sum">
+    <variableExpression><![CDATA[
+      ($F{totalVentas}==null) ? 0L : ((Number)$F{totalVentas}).longValue()
+    ]]></variableExpression>
+  </variable>
 
   <title>
-    <band height="50">
-      <textField>
-        <reportElement x="0" y="0" width="515" height="20"/>
-        <textElement textAlignment="Center"><font size="14" isBold="true"/></textElement>
-        <textFieldExpression><![CDATA[$P{P_TITULO}]]></textFieldExpression>
-      </textField>
-      <textField>
-        <reportElement x="0" y="25" width="515" height="20"/>
-        <textElement textAlignment="Center"/>
-        <textFieldExpression><![CDATA[$P{P_RANGO}]]></textFieldExpression>
-      </textField>
+    <band height="60">
+      <rectangle><reportElement x="0" y="0" width="515" height="60" mode="Opaque" backcolor="#FF7A00"/></rectangle>
+      <textField><reportElement style="title" x="0" y="6" width="515" height="22"/><textFieldExpression><![CDATA[$P{P_TITULO}]]></textFieldExpression></textField>
+      <textField><reportElement style="subtitle" x="0" y="32" width="515" height="18"/><textFieldExpression><![CDATA[$P{P_RANGO}]]></textFieldExpression></textField>
     </band>
   </title>
 
   <columnHeader>
-    <band height="20">
-      <staticText><reportElement x="0"   y="0" width="40"  height="20"/><text><![CDATA[ID]]></text></staticText>
-      <staticText><reportElement x="42"  y="0" width="210" height="20"/><text><![CDATA[Producto]]></text></staticText>
-      <staticText><reportElement x="254" y="0" width="120" height="20"/><text><![CDATA[Grupo]]></text></staticText>
-      <staticText><reportElement x="376" y="0" width="60"  height="20"/><text><![CDATA[Precio]]></text></staticText>
-      <staticText><reportElement x="438" y="0" width="77"  height="20"/><text><![CDATA[Total Ventas]]></text></staticText>
+    <band height="22">
+      <staticText><reportElement style="th" x="0"   y="0" width="40"  height="22"/><text><![CDATA[ID]]></text></staticText>
+      <staticText><reportElement style="th" x="42"  y="0" width="200" height="22"/><text><![CDATA[Producto]]></text></staticText>
+      <staticText><reportElement style="th" x="244" y="0" width="120" height="22"/><text><![CDATA[Grupo]]></text></staticText>
+      <staticText><reportElement style="th" x="366" y="0" width="80"  height="22"/><text><![CDATA[Precio]]></text></staticText>
+      <staticText><reportElement style="th" x="448" y="0" width="67"  height="22"/><text><![CDATA[Total]]></text></staticText>
     </band>
   </columnHeader>
 
   <detail>
     <band height="18">
-      <textField><reportElement x="0"   y="0" width="40"  height="18"/><textFieldExpression><![CDATA[$F{id}]]></textFieldExpression></textField>
-      <textField><reportElement x="42"  y="0" width="210" height="18"/><textFieldExpression><![CDATA[String.valueOf($F{nombre})]]></textFieldExpression></textField>
-      <textField><reportElement x="254" y="0" width="120" height="18"/><textFieldExpression><![CDATA[String.valueOf($F{grupo})]]></textFieldExpression></textField>
-      <textField><reportElement x="376" y="0" width="60"  height="18"/><textFieldExpression><![CDATA[$F{precio}]]></textFieldExpression></textField>
-      <textField><reportElement x="438" y="0" width="77"  height="18"/><textFieldExpression><![CDATA[$F{totalVentas}]]></textFieldExpression></textField>
+      <textField><reportElement style="tdCenter" x="0"   y="0" width="40"  height="18"/><textFieldExpression><![CDATA[$F{id}]]></textFieldExpression></textField>
+      <textField isStretchWithOverflow="true"><reportElement style="tdLeft" x="42"  y="0" width="200" height="18"/><textFieldExpression><![CDATA[String.valueOf($F{nombre})]]></textFieldExpression></textField>
+      <textField isStretchWithOverflow="true"><reportElement style="tdLeft" x="244" y="0" width="120" height="18"/><textFieldExpression><![CDATA[String.valueOf($F{grupo})]]></textFieldExpression></textField>
+      <textField pattern="#,##0.00"><reportElement style="tdRight" x="366" y="0" width="80"  height="18"/><textFieldExpression><![CDATA[$F{precio}]]></textFieldExpression></textField>
+      <textField pattern="#,##0"><reportElement style="tdRight" x="448" y="0" width="67"  height="18"/><textFieldExpression><![CDATA[$F{totalVentas}]]></textFieldExpression></textField>
     </band>
   </detail>
+
+  <summary>
+    <band height="28">
+      <rectangle><reportElement x="0" y="0" width="515" height="28" mode="Opaque" backcolor="#FFF6EC"/></rectangle>
+      <staticText><reportElement x="366" y="5" width="80" height="18"/><textElement textAlignment="Right"/><text><![CDATA[Total uds:]]></text></staticText>
+      <textField pattern="#,##0"><reportElement style="tdRight" x="448" y="5" width="67" height="18"/><textFieldExpression><![CDATA[$V{V_SUM_CANT}]]></textFieldExpression></textField>
+    </band>
+  </summary>
 </jasperReport>

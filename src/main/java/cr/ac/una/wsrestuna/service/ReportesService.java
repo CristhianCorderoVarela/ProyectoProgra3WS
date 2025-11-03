@@ -254,4 +254,52 @@ public class ReportesService {
     public List<Map<String, Object>> cierreCaja(LocalDate fecha, String usuario) {
         return cierres(fecha, usuario);
     }
+    
+   public Map<String,Object> cierreById(Long cierreId) {
+    CierreCaja c = em.find(CierreCaja.class, cierreId);
+    if (c == null) return Map.of("cierre", Map.of(), "movimientos", List.of());
+
+    var ini = c.getFechaApertura();
+    var fin = c.getFechaCierre() != null ? c.getFechaCierre() : LocalDateTime.now();
+    Long uid = c.getUsuario().getId();
+
+    var facturas = em.createQuery(
+        "SELECT f FROM Factura f JOIN f.usuario u " +
+        "WHERE u.id=:uid AND f.fechaHora BETWEEN :ini AND :fin", Factura.class)
+        .setParameter("uid", uid)
+        .setParameter("ini", ini)
+        .setParameter("fin", fin)
+        .getResultList();
+
+    List<Map<String,Object>> movs = new ArrayList<>();
+    for (Factura f : facturas) {
+        movs.add(Map.of(
+            "facturaId", f.getId(),
+            "fecha", Objects.toString(f.getFechaHora(), null),
+            "cliente", f.getCliente() != null ? f.getCliente().getNombre() : null,
+            "subtotal", nz(f.getSubtotal()),
+            "impVenta", nz(f.getImpuestoVenta()),
+            "impServ", nz(f.getImpuestoServicio()),
+            "descuento", nz(f.getDescuento()),
+            "total", nz(f.getTotal())
+        ));
+    }
+
+    Map<String,Object> cab = new LinkedHashMap<>();
+cab.put("id", c.getId());
+cab.put("usuario", c.getUsuario().getUsuario());
+cab.put("usuarioNombre", c.getUsuario().getNombre());
+cab.put("apertura", c.getFechaApertura());
+cab.put("cierre", c.getFechaCierre());
+cab.put("efectivoSistema", nz(c.getEfectivoSistema()));
+cab.put("tarjetaSistema", nz(c.getTarjetaSistema()));
+cab.put("efectivoDecl", nz(c.getEfectivoDeclarado()));
+cab.put("tarjetaDecl", nz(c.getTarjetaDeclarado()));
+cab.put("difEfectivo", nz(c.getDiferenciaEfectivo()));
+cab.put("difTarjeta", nz(c.getDiferenciaTarjeta()));
+    
+    return Map.of("cierre", cab, "movimientos", movs);
+}
+
+
 }
