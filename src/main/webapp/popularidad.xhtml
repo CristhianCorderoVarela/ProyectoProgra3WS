@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml"
+      xmlns:h="http://xmlns.jcp.org/jsf/html"
+      xmlns:p="http://primefaces.org/ui"
+      xmlns:f="http://xmlns.jcp.org/jsf/core">
+
+<h:head>
+    <title>#{msg['popular.titulo']}</title>
+    <style>
+        :root {
+            --bg: #ffffff;
+            --text: #222;
+            --panel: #f8f9fa;
+            --card-grad: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        body.dark {
+            --bg: #0f172a;
+            --text: #e5e7eb;
+            --panel: #111827;
+            --card-grad: linear-gradient(135deg, #374151 0%, #1f2937 100%);
+        }
+        body {
+            background: var(--bg);
+            color: var(--text);
+            margin: 0;
+            padding: 20px;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: var(--bg);
+            border-radius: 15px;
+            box-shadow: 0 10px 40px rgba(0,0,0,.2);
+            padding: 30px;
+        }
+        .header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+            margin-bottom: 20px;
+        }
+        .header h1 { color: #FF7A00; font-size: 28px; margin: 0; }
+        .sub { color: #6c757d; }
+        body.dark .sub { color: #9ca3af; }
+        .toolbar { display: flex; align-items: center; gap: 12px; }
+
+        .filters {
+            background: var(--panel);
+            padding: 16px;
+            border-radius: 10px;
+            margin-bottom: 24px;
+        }
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 16px;
+            margin: 20px 0;
+        }
+        .stat-card {
+            background: var(--card-grad);
+            color: #fff;
+            padding: 18px;
+            border-radius: 10px;
+            text-align: center;
+        }
+        .stat-card h3 { margin: 0; font-size: 28px; }
+
+        .section { margin-top: 24px; }
+        .title-sm { font-weight: 600; margin: 0 0 8px 0; }
+        .pill {
+            padding: 6px 10px;
+            border-radius: 999px;
+            background: #f3f4f6;
+            color: #111827;
+            display: inline-block;
+        }
+        body.dark .pill { background: #1f2937; color: #e5e7eb; }
+    </style>
+</h:head>
+
+<h:body styleClass="#{uiBean.bodyClass()}">
+    <h:form id="frm">
+        <div class="container">
+            <!-- CABECERA -->
+            <div class="header">
+                <div>
+                    <h1>📊 #{msg['popular.titulo']}</h1>
+                    <div class="sub">#{msg['popular.subtitulo']}</div>
+                </div>
+                <div class="toolbar">
+                    <!-- Idioma -->
+                    <p:selectOneButton value="#{localeBean.language}">
+                        <f:selectItem itemLabel="ES" itemValue="es"/>
+                        <f:selectItem itemLabel="EN" itemValue="en"/>
+                        <!-- Refresca todo para que cambie todo el texto -->
+                        <p:ajax listener="#{localeBean.setLanguage(localeBean.language)}" update="@all"/>
+                    </p:selectOneButton>
+
+                    <!-- Tema (sin Ajax: fuerza re-render del <body>) -->
+                    <p:commandButton value="#{uiBean.dark ? msg['popular.claro'] : msg['popular.oscuro']}"
+                                     action="#{uiBean.toggleTheme}"
+                                     ajax="false"
+                                     icon="pi pi-adjust"/>
+                </div>
+            </div>
+
+            <!-- FILTROS -->
+            <div class="filters">
+                <p:panelGrid columns="6" layout="grid">
+                    <p:outputLabel for="ini" value="#{msg['popular.fechaInicio']}"/>
+                    <p:datePicker id="ini" value="#{popularidadBean.fechaInicio}" pattern="dd/MM/yyyy" showIcon="true"/>
+
+                    <p:outputLabel for="fin" value="#{msg['popular.fechaFin']}"/>
+                    <p:datePicker id="fin" value="#{popularidadBean.fechaFin}" pattern="dd/MM/yyyy" showIcon="true"/>
+
+                    <p:outputLabel for="grupo" value="#{msg['popular.grupo']}"/>
+                    <p:selectOneMenu id="grupo" value="#{popularidadBean.grupoId}" style="min-width:220px">
+                        <f:selectItems value="#{popularidadBean.gruposUI}"/>
+                    </p:selectOneMenu>
+                </p:panelGrid>
+
+                <p:commandButton value="#{msg['popular.aplicar']}"
+                                 actionListener="#{popularidadBean.cargarDatos}"
+                                 update="stats charts tabla estrella riesgo"
+                                 styleClass="ui-button-success"
+                                 style="margin-top:10px"/>
+            </div>
+
+            <!-- ESTADÍSTICAS -->
+            <h:panelGroup id="stats">
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <h3>#{popularidadBean.totalVentas}</h3>
+                        <p>#{msg['popular.totalVentas']}</p>
+                    </div>
+                    <div class="stat-card">
+                        <h3>#{popularidadBean.totalIngresosFormateado}</h3>
+                        <p>#{msg['popular.totalIngresos']}</p>
+                    </div>
+                    <div class="stat-card">
+                        <h3>#{popularidadBean.cantidadProductos}</h3>
+                        <p>#{msg['popular.productos']}</p>
+                    </div>
+                    <div class="stat-card">
+                        <h3>#{popularidadBean.promedioFormateado}</h3>
+                        <p>#{msg['popular.promedio']}</p>
+                    </div>
+                </div>
+            </h:panelGroup>
+
+            <!-- TOP 5 -->
+            <h:panelGroup id="charts" styleClass="section">
+                <p:panel header="#{msg['popular.rankingTop']}">
+                    <p:barChart model="#{popularidadBean.barModel}" style="height:300px"/>
+                </p:panel>
+            </h:panelGroup>
+
+            <!-- TABLA DETALLE -->
+            <p:dataTable id="tabla" value="#{popularidadBean.productos}" var="p"
+                         paginator="true" rows="10" style="margin-top:20px"
+                         emptyMessage="#{msg['popular.sinDatos']}">
+                <p:column headerText="#{msg['popular.producto']}" sortBy="#{p.nombreProducto}">
+                    <h:outputText value="#{p.nombreProducto}"/>
+                </p:column>
+                <p:column headerText="#{msg['popular.ventas']}" sortBy="#{p.cantidadVentas}">
+                    <h:outputText value="#{p.cantidadVentas}"/>
+                </p:column>
+                <p:column headerText="#{msg['popular.ingresos']}" sortBy="#{p.ingresoTotal}">
+                    <h:outputText value="#{p.ingresoTotal}">
+                        <f:convertNumber type="number" minFractionDigits="2" maxFractionDigits="2"/>
+                    </h:outputText>
+                </p:column>
+                <p:column headerText="#{msg['popular.porcentaje']}" sortBy="#{p.porcentajeVentas}">
+                    <h:outputText value="#{p.porcentajeVentas}">
+                        <f:convertNumber type="number" minFractionDigits="1" maxFractionDigits="1"/>
+                    </h:outputText>%
+                </p:column>
+            </p:dataTable>
+
+            <!-- PRODUCTO ESTRELLA -->
+            <h:panelGroup id="estrella" styleClass="section">
+                <h:panelGroup rendered="#{not empty popularidadBean.productoEstrellaSemana}">
+                    <h3 class="title-sm">#{msg['popular.estrellaSemana']}</h3>
+                    <span class="pill">
+                        #{popularidadBean.productoEstrellaSemana.nombreProducto}
+                        — #{popularidadBean.productoEstrellaSemana.cantidadVentas}
+                        #{msg['popular.ventas'].toLowerCase()}
+                    </span>
+                </h:panelGroup>
+            </h:panelGroup>
+
+            <!-- EN RIESGO -->
+            <h:panelGroup id="riesgo" styleClass="section">
+                <h3 class="title-sm">#{msg['popular.esRiesgo']}</h3>
+                <p:dataList value="#{popularidadBean.productosEnRiesgoSemana}" var="r"
+                            emptyMessage="#{msg['popular.sinDatos']}">
+                    <h:outputText value="#{r.nombre}"/>
+                </p:dataList>
+            </h:panelGroup>
+        </div>
+    </h:form>
+</h:body>
+</html>
